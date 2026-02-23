@@ -34,7 +34,7 @@ with tab1:
 
         with st.spinner("Analyzing Fundamentals..."):
             # Fetch for top 20 to stay within memory/time limits
-            tickers = df_metadata['Symbol'].head(20).tolist()
+            tickers = df_metadata['Symbol'].head(50).tolist()
             fundamentals = database.get_enriched_data(tickers)
             st.session_state.final_report = [] 
             for _, row in fundamentals.iterrows():
@@ -102,10 +102,20 @@ with tab3:
 
         df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
 
+        
+        # Search and Filter for 2026 Alpha Engine
+        search_query = st.text_input("🔍 Search Ticker or Sector", "")
+        sort_by = st.selectbox("Sort by:", ["Margin of Safety", "Alpha Score", "FCF Yield"])
+
+        # Filter the dataframe before looping
+        if search_query:
+            df_alpha = df_alpha[df_alpha['Ticker'].str.contains(search_query.upper()) | 
+                                df_alpha['Sector'].str.contains(search_query.title())]
+            
         grid_cols = st.columns(3) 
         for idx, row in df_alpha.iterrows():
             with grid_cols[idx % 3]:
-                action, logic, color, mos_fetch = engine.generate_recommendation(row, st.session_state.macro)
+                action, logic, color = engine.generate_recommendation(row, st.session_state.macro)
                 with st.container(border=True):
                     # Card Header
                     st.markdown(f"### :{row['Color']}[{row['Ticker']} - {action}]")
