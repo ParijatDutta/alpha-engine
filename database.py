@@ -16,27 +16,22 @@ def initialize_sp500():
     return df
 
 def get_enriched_data(tickers):
-    """Fetches key Buffett-style metrics for a list of tickers."""
-    # To keep your Chromebook/Streamlit memory safe, we fetch in small batches
     enriched_results = []
-    
-    # We use yf.download for price and Ticker.info for fundamentals
-    # Note: In a free tier, we limit this to a subset for the first run
-    for t in tickers[:20]: # Start with 20 to test stability
+    for t in tickers[:30]:
         try:
-            # Add a small logic check: if currentPrice is None, try regularMarketPrice
             tk = yf.Ticker(t)
             info = tk.info
-            price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
             
-            if price: # Only add if we actually found a price
-                enriched_results.append({
-                    "Symbol": t,
-                    "Price": price,
-                    "EPS": info.get("trailingEps", 0),
-                    "BVPS": info.get("bookValue", 0),
-                    "ROE": info.get("returnOnEquity", 0),
-                })
-        except:
-            continue
+            # Key Buffett/Graham Metrics
+            enriched_results.append({
+                "Symbol": t,
+                "Price": info.get("currentPrice") or info.get("previousClose"),
+                "EPS": info.get("trailingEps", 0),
+                "BVPS": info.get("bookValue", 0),
+                "ROE": info.get("returnOnEquity", 0),
+                "DivYield": info.get("dividendYield", 0),
+                # Analyst 5-year growth estimate (crucial for DCF)
+                "GrowthRate": info.get("earningsGrowth", 0.05) # Default 5% if missing
+            })
+        except Exception: continue
     return pd.DataFrame(enriched_results)
