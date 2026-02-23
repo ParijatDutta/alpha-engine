@@ -23,24 +23,16 @@ def generate_recommendation(ticker_stats, macro):
     trend = ticker_stats.get('Trend', "")
     
     # 2026 'Quality' Logic
-    if mos_pct > 0.30 and fcf_yield > 0.07:
-        return "ELITE BUY", "Strong Cash Flow + Deep Value", "green", mos_pct
-    elif div_safe == "⚠️ Risk" and mos_pct > 0.20:
-        return "CAUTION", "Cheap but Dividend at Risk", "orange", mos_pct
-    elif mos_pct >= 0.30 and "🚀" in trend:
-        return "ELITE BUY", "Intrinsic & Momentum aligned", "green", mos_pct
     if mos_pct > 0.25 and fcf_yield > 0.08:
-        return "ELITE BUY", "Deep Value + High Cash Gen", "green", mos_pct
+        return "ELITE BUY", "Deep Value + High Cash Flow", "green"
     elif mos_pct > 0.15:
-        return "BUY", "Attractive Entry", "blue", mos_pct
-    elif fcf_yield < 0 and mos_pct > 0:
-        return "VALUE TRAP", "Cheap but burning cash", "orange", mos_pct
-    elif mos_pct >= 0.20:
-        return "STRONG BUY", "Deep Value Gap", "green", mos_pct
-    elif mos_pct < 0:
-        return "OVERVALUED", "Price exceeds Value", "red", mos_pct
+        return "STRONG BUY", "Significant Margin of Safety", "green"
+    elif fcf_yield < 0 and mos_pct > 0.10:
+        return "VALUE TRAP", "Cheap but burning cash", "orange"
+    elif mos_pct < -0.10:
+        return "OVERVALUED", "Market price exceeds fair value", "red"
     else:
-        return "HOLD", "Monitor for better entry", "gray", mos_pct
+        return "HOLD", "Fairly valued/Wait for dip", "gray"
 
 def calculate_alpha_score(ticker_stats, macro, dynamic_ratings):
     intrinsic = ticker_stats.get('Intrinsic', 0)

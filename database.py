@@ -17,7 +17,7 @@ def initialize_sp500():
 
 def get_enriched_data(tickers):
     enriched_results = []
-    for t in tickers[:30]:
+    for t in tickers[:50]:
         try:
             tk = yf.Ticker(t)
             info = tk.info
