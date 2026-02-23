@@ -1,14 +1,27 @@
 import pandas as pd
 
-def calculate_intrinsic_value_dcf(eps, growth_rate, discount_rate=0.09):
-    total_pv = 0
-    current_eps = eps
-    for year in range(1, 11):
-        current_eps *= (1 + growth_rate)
-        pv = current_eps / ((1 + discount_rate) ** year)
-        total_pv += pv
-    terminal_value = (current_eps * 15) / ((1 + discount_rate) ** 10)
-    return total_pv + terminal_value
+def calculate_intrinsic_value_dcf(eps, growth_rate, shares_outstanding):
+    if eps <= 0 or shares_outstanding <= 0:
+        return 0
+    
+    # 1. Project Earnings for 5 years
+    # 2. Terminal Value: Assume we sell the company at year 5 for 20x earnings
+    # 3. Discount everything back at 10% (standard hurdle rate)
+    
+    discount_rate = 0.10
+    terminal_multiple = 20
+    years = 5
+    
+    # Calculate Year 5 Earnings
+    future_eps = eps * ((1 + growth_rate) ** years)
+    
+    # Calculate Terminal Value per share
+    terminal_value = future_eps * terminal_multiple
+    
+    # Discount Terminal Value back to today
+    intrinsic_value = terminal_value / ((1 + discount_rate) ** years)
+    
+    return round(intrinsic_value, 2)
 
 def generate_recommendation(ticker_stats, macro):
     # Use .get to check both naming conventions to be safe

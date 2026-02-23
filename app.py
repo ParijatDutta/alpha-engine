@@ -42,7 +42,7 @@ with tab1:
                 ticker_data = {
                     "Ticker": row['Symbol'],
                     "Price": row['Price'],
-                    "Intrinsic": round(engine.calculate_intrinsic_value_dcf(row['EPS'], row.get('GrowthRate', 0.05)), 2),
+                    "Intrinsic": round(engine.calculate_intrinsic_value_dcf(row['EPS'], row.get('GrowthRate', 0.05),row.get('Shares_Outstanding', 1)), 2),
                     "ROE": row.get('ROE', 0),
                     "DivYield": row.get('DivYield', 0),
                     "Trend": row.get('Trend', "N/A"), 
