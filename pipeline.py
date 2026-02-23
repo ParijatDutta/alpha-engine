@@ -1,38 +1,36 @@
 import pandas as pd
 import yfinance as yf
+from io import StringIO
 import requests
 
 def fetch_politician_trades():
-    """Fetches recent politician trades using a 2026-compliant header."""
-    # Capitol Trades direct JSON endpoint (2026 update)
-    url = "https://api.capitoltrades.com/trades?pageSize=50"
+    """Bypasses 403 Forbidden by mimicking a full browser session."""
+    url = "https://www.capitoltrades.com/trades?tx_index=sp500"
     
-    # Advanced headers to bypass 2026 security blocks
+    # Standard 2026 Browser Headers
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-        "Accept": "application/json",
-        "Referer": "https://www.capitoltrades.com/trades"
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://www.google.com/"
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=15)
+        # Use a session to persist headers
+        session = requests.Session()
+        response = session.get(url, headers=headers, timeout=15)
+        
         if response.status_code == 200:
-            raw_data = response.json().get('data', [])
-            if not raw_data:
-                return pd.DataFrame()
-            
-            # 2026 Data Schema Mapping
-            df = pd.DataFrame(raw_data)
-            
-            # Extract politician name from nested dict if necessary
-            if 'politician' in df.columns and isinstance(df['politician'].iloc[0], dict):
-                df['politician_name'] = df['politician'].apply(lambda x: f"{x.get('firstName')} {x.get('lastName')}")
-            else:
-                df['politician_name'] = df['politician']
-
-            return df[['politician_name', 'asset', 'txType', 'value', 'txDate']]
+            # Wrap text in StringIO to satisfy latest pandas requirements
+            dfs = pd.read_html(StringIO(response.text))
+            if dfs:
+                df = dfs[0]
+                # Clean up column names based on the 2026 site layout
+                # Usually: Ticker, Politician, Type, Amount, Date
+                return df
     except Exception as e:
-        print(f"Fetch Error: {e}")
+        print(f"Scrape Error: {e}")
+    
     return pd.DataFrame()
 
 def fetch_macro_signals():

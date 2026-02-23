@@ -27,20 +27,21 @@ with tab1:
     st.dataframe(df_metadata, use_container_width=True, height=450)
 
 with tab2:
-    st.subheader("Market & Legislative Intelligence")
+    st.subheader("🔭 Live Intelligence Scan")
     if st.button("Run Intel Scan"):
-        with st.spinner("Fetching..."):
+        with st.spinner("Bypassing security protocols..."):
             macro = pipeline.fetch_macro_signals()
             trades = pipeline.fetch_politician_trades()
             
+            # Show Macro first
             c1, c2 = st.columns(2)
-            c1.metric("VIX (Fear Index)", f"{macro['VIX']:.2f}")
+            c1.metric("VIX Index", f"{macro['VIX']:.2f}")
             c2.metric("10Y Treasury", f"{macro['10Y_Yield']:.2f}%")
             
+            # Show Trades
             if not trades.empty:
-                st.write("Recent Congressional Activity:")
-                # Using the new column names defined in pipeline.py
-                display_cols = ['politician_name', 'asset', 'txType', 'value']
-                st.dataframe(trades[display_cols], height=400, use_container_width=True)
+                st.write("Recent Capitol Trades (S&P 500 Index):")
+                # Show top 10 trades to save vertical space/memory
+                st.dataframe(trades.head(10), use_container_width=True, height=400)
             else:
-                st.warning("No recent trades found or source is temporarily blocked.")
+                st.error("Access Denied. Capitol Trades blocked the cloud IP. Try again in 5 mins.")
