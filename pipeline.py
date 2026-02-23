@@ -1,27 +1,23 @@
-import requests
-import pandas as pd
-from datetime import datetime, timedelta
 import yfinance as yf
-
-def fetch_politician_trades():
-    """Fetches recent politician trades from Capitol Trades JSON API."""
-    url = "https://api.capitoltrades.com/trades?pageSize=50"
-    try:
-        response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-        if response.status_code == 200:
-            data = response.json()['data']
-            df = pd.DataFrame(data)
-            # Filter for S&P 500 relevant info (Ticker and Type)
-            return df[['asset', 'politician', 'txDate', 'txType', 'value']]
-    except Exception as e:
-        print(f"Politician Trade Error: {e}")
-    return pd.DataFrame()
+import pandas as pd
+import requests
 
 def fetch_macro_signals():
-    """Fetches key macro data: 10Y Yield and Inflation proxy."""
-    # Using public data proxies to avoid needing private API keys for now
-    signals = {
-        "10Y_Yield": yf.Ticker("^TNX").history(period="1d")['Close'].iloc[-1],
-        "VIX": yf.Ticker("^VIX").history(period="1d")['Close'].iloc[-1]
-    }
-    return signals
+    """Fetches VIX and 10Y Yield with rate-limit protection."""
+    try:
+        # download is generally more robust than Ticker.history for cloud IPs
+        vix_data = yf.download("^VIX", period="5d", interval="1d", progress=False)
+        tnx_data = yf.download("^TNX", period="5d", interval="1d", progress=False)
+        
+        # Get the last valid closing price
+        vix = vix_data['Close'].iloc[-1]
+        tnx = tnx_data['Close'].iloc[-1]
+        
+        # Handle cases where yfinance returns a Series instead of a float
+        return {
+            "VIX": float(vix), 
+            "10Y_Yield": float(tnx)
+        }
+    except Exception as e:
+        print(f"Macro Fetch Error: {e}")
+        return {"VIX": 0.0, "10Y_Yield": 0.0}
