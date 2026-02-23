@@ -36,7 +36,7 @@ with tab1:
             # Clear and rebuild report in session state
             st.session_state.final_report = [] 
             for _, row in fundamentals.iterrows():
-                intrinsic = engine.calculate_intrinsic_value(row['EPS'], row['BVPS'])
+                intrinsic = engine.calculate_intrinsic_value_dcf(row['EPS'], row['GrowthRate'])
                 ticker_stats = {'price': row['Price'], 'intrinsic_value': intrinsic, 'roe': row['ROE']}
                 rec, reason = engine.generate_recommendation(ticker_stats, st.session_state.macro)
                 

@@ -15,7 +15,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }} # Auth for the push
+          token: ${{ secrets.MY_PAT }} # Uses your new high-level token
           
       - name: Set up Python
         uses: actions/setup-python@v5
