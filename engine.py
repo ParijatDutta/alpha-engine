@@ -1,19 +1,12 @@
 import pandas as pd
 
 def calculate_intrinsic_value_dcf(eps, growth_rate, discount_rate=0.09):
-    """
-    Buffett-style DCF: Sum of 10-year projected earnings discounted to PV.
-    """
     total_pv = 0
     current_eps = eps
     for year in range(1, 11):
-        # Project future EPS
         current_eps *= (1 + growth_rate)
-        # Discount to Present Value
         pv = current_eps / ((1 + discount_rate) ** year)
         total_pv += pv
-    
-    # Terminal Value (Year 10 price assuming 15x multiple)
     terminal_value = (current_eps * 15) / ((1 + discount_rate) ** 10)
     return total_pv + terminal_value
 
@@ -21,18 +14,17 @@ def generate_recommendation(ticker_stats, macro):
     intrinsic = ticker_stats['intrinsic_value']
     price = ticker_stats['price']
     
-    # Margin of Safety (MOS) Calculation
-    mos_price = intrinsic * 0.70  # 30% discount
-    overvalued_price = intrinsic * 1.15 # 15% premium
+    # Calculation: How much cheaper is the price than the value?
+    mos_pct = (intrinsic - price) / intrinsic if intrinsic > 0 else 0
     
-    if price <= mos_price:
-        return "STRONG BUY", f"Buy if price is below ${mos_price:.2f}. (30% Margin of Safety)"
-    elif price <= intrinsic:
-        return "BUY / FAIR VALUE", f"Intrinsic value is ${intrinsic:.2f}."
-    elif price >= overvalued_price:
-        return "SELL / TAKE PROFIT", f"Significantly overvalued. Exit above ${overvalued_price:.2f}."
+    if mos_pct >= 0.30:
+        return "STRONG BUY", f"30%+ Margin of Safety", "green", mos_pct
+    elif mos_pct >= 0.10:
+        return "BUY", "Solid Value Gap", "blue", mos_pct
+    elif mos_pct <= -0.10:
+        return "OVERVALUED", "Trading above Intrinsic", "red", mos_pct
     else:
-        return "HOLD", "Trading within fair value range."
+        return "HOLD", "Near Fair Value", "gray", mos_pct
 
 def calculate_alpha_score(ticker_stats, macro):
     """Generates a 0-100 score based on Value, Quality, and Macro risk."""

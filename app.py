@@ -66,25 +66,39 @@ with tab2:
 
 # --- TAB 3: INTELLIGENCE HUB (THE BRAIN) ---
 with tab3:
-    st.header("Top Alpha Signals")
+    st.header("🏛️ Intelligence Hub: Conviction Grid")
+    
     if st.session_state.final_report:
         df_alpha = pd.DataFrame(st.session_state.final_report)
         
-        # Calculate Alpha Score (0-100)
+        # Scoring & Sorting
         df_alpha['Alpha Score'] = df_alpha.apply(
             lambda x: engine.calculate_alpha_score(
                 {'price': x['Price'], 'intrinsic_value': x['Intrinsic'], 'roe': x['ROE']}, 
                 st.session_state.macro
             ), axis=1
         )
-        
         df_alpha = df_alpha.sort_values(by='Alpha Score', ascending=False)
-        
-        # Display as high-impact metrics
-        for _, row in df_alpha.head(20).iterrows():
-            with st.expander(f"⭐ {row['Ticker']} - Score: {int(row['Alpha Score'])}/100"):
-                st.write(f"**Recommendation:** {row['Action']}")
-                st.write(f"**Logic:** {row['Logic']}")
-                st.progress(int(row['Alpha Score'])/100)
+
+        # GRID DISPLAY: 3 cards per row
+        cols = st.columns(3) 
+        for idx, row in df_alpha.iterrows():
+            # Match the recommendation to a color
+            rec, logic, color, mos = engine.generate_recommendation(
+                {'intrinsic_value': row['Intrinsic'], 'price': row['Price']}, 
+                st.session_state.macro
+            )
+            
+            # Place card in rotating columns
+            with cols[idx % 3]:
+                with st.container(border=True):
+                    st.markdown(f"### :{color}[{row['Ticker']}]")
+                    st.metric("Price", f"${row['Price']}")
+                    st.metric("Intrinsic", f"${row['Intrinsic']}", 
+                              delta=f"{mos:.1%}", delta_color="normal")
+                    
+                    st.markdown(f"**{rec}**")
+                    st.caption(f"MOS: {mos:.1%}")
+                    
     else:
-        st.info("Please run 'Generate Recommendations' in Tab 1 first.")
+        st.info("Run analysis in Tab 1 to populate the Hub.")
