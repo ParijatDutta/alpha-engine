@@ -28,24 +28,37 @@ with tab1:
     st.subheader("S&P 500 Universe")
     st.dataframe(df_metadata, use_container_width=True, height=450)
     if st.button("Generate Recommendations"):
-        with st.spinner("Analyzing S&P 500 fundamentals..."):
-            # For now, we apply this to the first 10 for speed; 
-            # later we will batch this to the database.
-            results = []
+        with st.spinner("Fetching real-time fundamentals..."):
+            # 1. Get fundamental data
+            tickers = df_metadata['Symbol'].tolist()
+            fundamentals = database.get_enriched_data(tickers)
+            
+            # 2. Get macro context
             macro = pipeline.fetch_macro_signals()
             
-            for index, row in df_metadata.head(10).iterrows():
-                # Mocking fundamental data fetch for the demo
-                # In Phase 5, we'll pull this from a cached fundamental file
-                mock_ticker = {
-                    'price': 150.0, 
-                    'intrinsic_value': 185.0, 
-                    'roe': 0.18
-                }
-                rec, reason = engine.generate_recommendation(mock_ticker, macro)
-                results.append({"Ticker": row['Symbol'], "Action": rec, "Reason": reason})
+            # 3. Run the Engine
+            final_report = []
+            for _, row in fundamentals.iterrows():
+                # Calculate intrinsic value using our Phase 4 engine
+                intrinsic = engine.calculate_intrinsic_value(row['EPS'], row['BVPS'])
                 
-            st.table(pd.DataFrame(results))
+                ticker_stats = {
+                    'price': row['Price'],
+                    'intrinsic_value': intrinsic,
+                    'roe': row['ROE']
+                }
+                
+                rec, reason = engine.generate_recommendation(ticker_stats, macro)
+                final_report.append({
+                    "Ticker": row['Symbol'],
+                    "Price": row['Price'],
+                    "Intrinsic": round(intrinsic, 2),
+                    "Action": rec,
+                    "Logic": reason
+                })
+                
+            st.subheader("🚀 Alpha Recommendations")
+            st.dataframe(pd.DataFrame(final_report), use_container_width=True)
 
 with tab2:
     st.subheader("🔭 Live Intelligence Scan")
