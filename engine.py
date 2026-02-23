@@ -29,12 +29,18 @@ def generate_recommendation(ticker_stats, macro):
         return "CAUTION", "Cheap but Dividend at Risk", "orange", mos_pct
     elif mos_pct >= 0.30 and "🚀" in trend:
         return "ELITE BUY", "Intrinsic & Momentum aligned", "green", mos_pct
+    if mos_pct > 0.25 and fcf_yield > 0.08:
+        return "ELITE BUY", "Deep Value + High Cash Gen", "green", mos_pct
+    elif mos_pct > 0.15:
+        return "BUY", "Attractive Entry", "blue", mos_pct
+    elif fcf_yield < 0 and mos_pct > 0:
+        return "VALUE TRAP", "Cheap but burning cash", "orange", mos_pct
     elif mos_pct >= 0.20:
         return "STRONG BUY", "Deep Value Gap", "green", mos_pct
     elif mos_pct < 0:
         return "OVERVALUED", "Price exceeds Value", "red", mos_pct
     else:
-        return "HOLD", "Fair Value range", "gray", mos_pct
+        return "HOLD", "Monitor for better entry", "gray", mos_pct
 
 def calculate_alpha_score(ticker_stats, macro, dynamic_ratings):
     intrinsic = ticker_stats.get('Intrinsic', 0)

@@ -45,8 +45,10 @@ with tab1:
                     "Intrinsic": round(engine.calculate_intrinsic_value_dcf(row['EPS'], row.get('GrowthRate', 0.05)), 2),
                     "ROE": row.get('ROE', 0),
                     "DivYield": row.get('DivYield', 0),
-                    "Trend": row.get('Trend', "N/A"), # Crucial fix
-                    "Sector": row.get('Sector', "General")
+                    "Trend": row.get('Trend', "N/A"), 
+                    "Sector": row.get('Sector', "General"),
+                    "FCF_Yield": row.get('FCF_Yield', 0),    
+                    "DivSafe": row.get('DivSafe', 'N/A')
                 }
                 
                 # Get recommendation using the new multi-factor brain
@@ -109,7 +111,8 @@ with tab3:
     
                     # New row for FCF and Div Safety
                     col1, col2 = st.columns(2)
-                    col1.caption(f"FCF Yield: {row['FCF_Yield']:.1%}")
+                    fcf_val = row.get('FCF_Yield', 0) 
+                    col1.caption(f"FCF Yield: {fcf_val:.1%}")
                     col2.caption(f"Div: {row['DivSafe']}")
                     
                     st.metric("Price", f"${row['Price']}", delta=f"Value: ${row['Intrinsic']}")
