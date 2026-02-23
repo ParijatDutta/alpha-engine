@@ -71,34 +71,24 @@ with tab2:
 # --- TAB 3: INTELLIGENCE HUB (THE BRAIN) ---
 with tab3:
     st.header("🏛️ Intelligence Hub: Alpha Grid")
-    
     if st.session_state.final_report:
         df_alpha = pd.DataFrame(st.session_state.final_report)
-        
-        # Sort by best opportunity (highest Margin of Safety)
         df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
 
-        # Create 3 columns for the grid
         grid_cols = st.columns(3) 
-        
         for idx, row in df_alpha.iterrows():
             with grid_cols[idx % 3]:
-                # Use a container with a border for a 'card' feel
                 with st.container(border=True):
-                    # Header with color-coded Ticker
+                    # Card Header
                     st.markdown(f"### :{row['Color']}[{row['Ticker']}]")
+                    st.caption(f"{row['Trend']} | Yield: {row.get('DivYield', 0):.2%}")
                     
-                    # Core Metrics
-                    m1, m2 = st.columns(2)
-                    m1.metric("Price", f"${row['Price']}")
-                    m2.metric("Value", f"${row['Intrinsic']}", 
-                              delta=f"{row['MOS']:.1%}", delta_color="normal")
+                    # Metrics with Delta
+                    st.metric("Price vs Value", f"${row['Price']}", 
+                              delta=f"Value: ${row['Intrinsic']}", delta_color="normal")
                     
-                    # Status & Action
+                    # Sentiment & MOS
                     st.markdown(f"**{row['Action']}**")
-                    st.caption(f"{row['Logic']}")
-                    
-                    # Quality Check
-                    st.progress(min(max(row['ROE'], 0.0), 1.0), text=f"ROE: {row['ROE']:.1%}")
+                    st.progress(min(max(row['MOS'], 0.0), 1.0), text=f"Margin of Safety: {row['MOS']:.1%}")
     else:
-        st.info("Run analysis in Tab 1 to populate this grid.")
+        st.info("Run Analysis in Tab 1.")

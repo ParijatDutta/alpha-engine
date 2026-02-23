@@ -21,17 +21,25 @@ def get_enriched_data(tickers):
         try:
             tk = yf.Ticker(t)
             info = tk.info
+            # Fetching 1y history for Moving Averages
+            hist = tk.history(period="1y")
             
-            # Key Buffett/Graham Metrics
+            # Technicals
+            current_price = info.get("currentPrice") or info.get("previousClose")
+            ma_50 = hist['Close'].tail(50).mean()
+            ma_200 = hist['Close'].tail(200).mean()
+            
             enriched_results.append({
                 "Symbol": t,
-                "Price": info.get("currentPrice") or info.get("previousClose"),
+                "Price": current_price,
                 "EPS": info.get("trailingEps", 0),
-                "BVPS": info.get("bookValue", 0),
+                "GrowthRate": info.get("earningsGrowth", 0.15), # 2026 avg is ~15%
                 "ROE": info.get("returnOnEquity", 0),
                 "DivYield": info.get("dividendYield", 0),
-                # Analyst 5-year growth estimate (crucial for DCF)
-                "GrowthRate": info.get("earningsGrowth", 0.05) # Default 5% if missing
+                "52W_High": info.get("fiftyTwoWeekHigh"),
+                "52W_Low": info.get("fiftyTwoWeekLow"),
+                "Trend": "🚀 Bullish" if ma_50 > ma_200 else "⚠️ Bearish",
+                "Distance_from_Low": (current_price - info.get("fiftyTwoWeekLow")) / info.get("fiftyTwoWeekLow") if info.get("fiftyTwoWeekLow") else 0
             })
-        except Exception: continue
+        except: continue
     return pd.DataFrame(enriched_results)
