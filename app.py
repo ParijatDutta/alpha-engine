@@ -39,4 +39,8 @@ with tab2:
             
             if not trades.empty:
                 st.write("Recent Congressional Activity:")
-                st.dataframe(trades[['politician', 'asset', 'txType', 'value']], height=400)
+                # Using the new column names defined in pipeline.py
+                display_cols = ['politician_name', 'asset', 'txType', 'value']
+                st.dataframe(trades[display_cols], height=400, use_container_width=True)
+            else:
+                st.warning("No recent trades found or source is temporarily blocked.")
