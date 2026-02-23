@@ -32,7 +32,8 @@ def get_enriched_data(tickers):
             # Financial Strength Metrics
             fcf = info.get("freeCashflow", 0)
             shares = info.get("sharesOutstanding", 1)
-            fcf_yield = fcf / (info.get("marketCap", 1)) if info.get("marketCap") else 0
+            market_cap = info.get("marketCap", 1)
+            payout = info.get("payoutRatio", 0)
             
             # Dividend Safety (Payout Ratio < 75% is usually safe)
             payout_ratio = info.get("payoutRatio", 0)
@@ -40,12 +41,15 @@ def get_enriched_data(tickers):
             enriched_results.append({
                 "Symbol": t,
                 "Price": current_price,
-                "FCF_Yield": fcf_yield,
+                "Sector": info.get("sector", "General"),    
+                "Shares_Outstanding": shares,
+                "FCF_Yield": fcf / market_cap if market_cap > 0 else 0,
                 "Payout_Ratio": payout_ratio,
                 "DivSafe": "✅ Safe" if payout_ratio < 0.75 else "⚠️ High",
                 "EPS": info.get("trailingEps", 0),
                 "GrowthRate": info.get("earningsGrowth", 0.15), # 2026 avg is ~15%
                 "ROE": info.get("returnOnEquity", 0),
+                "DivSafe": "✅ Safe" if payout < 0.70 else "⚠️ Risk",
                 "DivYield": info.get("dividendYield", 0),
                 "52W_High": info.get("fiftyTwoWeekHigh"),
                 "52W_Low": info.get("fiftyTwoWeekLow"),

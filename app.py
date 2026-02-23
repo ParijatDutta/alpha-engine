@@ -82,17 +82,20 @@ with tab3:
         df_alpha = pd.DataFrame(st.session_state.final_report)
 
         st.subheader("🗺️ Sector Value Heatmap")
-        st.caption("Size = Tickers in Sector | Color = Margin of Safety (Green is Cheaper)")
+        st.caption("Size = Price Weight | Color = Margin of Safety (Green = Undervalued)")
         
+        # Build the treemap
         fig = px.treemap(
             df_alpha, 
             path=[px.Constant("Market"), 'Sector', 'Ticker'], 
-            values='Price', # Sizing by price (or you can add MarketCap later)
+            values='Price',
             color='MOS',
-            color_continuous_scale='RdYlGn', # Red to Yellow to Green
+            color_continuous_scale='RdYlGn', 
             color_continuous_midpoint=0,
-            hover_data=['Action', 'Intrinsic']
+            hover_data=['Action', 'Intrinsic', 'AlphaScore']
         )
+        
+        fig.update_layout(margin=dict(t=10, l=10, r=10, b=10))
         st.plotly_chart(fig, use_container_width=True)
 
         df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
@@ -103,14 +106,13 @@ with tab3:
                 with st.container(border=True):
                     # Card Header
                     st.markdown(f"### :{row['Color']}[{row['Ticker']}]")
-                    st.caption(f"{row['Trend']} | Yield: {row.get('DivYield', 0):.2%}")
+    
+                    # New row for FCF and Div Safety
+                    col1, col2 = st.columns(2)
+                    col1.caption(f"FCF Yield: {row['FCF_Yield']:.1%}")
+                    col2.caption(f"Div: {row['DivSafe']}")
                     
-                    # Metrics with Delta
-                    st.metric("Price vs Value", f"${row['Price']}", 
-                              delta=f"Value: ${row['Intrinsic']}", delta_color="normal")
-                    
-                    # Sentiment & MOS
-                    st.markdown(f"**{row['Action']}**")
-                    st.progress(min(max(row['MOS'], 0.0), 1.0), text=f"Margin of Safety: {row['MOS']:.1%}")
+                    st.metric("Price", f"${row['Price']}", delta=f"Value: ${row['Intrinsic']}")
+                    st.progress(min(max(row['ROE'], 0.0), 1.0), text=f"Efficiency (ROE): {row['ROE']:.1%}")
     else:
         st.info("Run Analysis in Tab 1.")
