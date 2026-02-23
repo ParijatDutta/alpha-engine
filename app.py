@@ -115,7 +115,8 @@ with tab3:
                     col1.caption(f"FCF Yield: {fcf_val:.1%}")
                     col2.caption(f"Div: {row['DivSafe']}")
                     
-                    st.metric("Price", f"${row['Price']}", delta=f"Value: ${row['Intrinsic']}")
+                    mos_delta = row['Intrinsic'] - row['Price']
+                    st.metric("Price", f"${row['Price']}", delta=f"${mos_delta:.2f}")
                     st.progress(min(max(row['ROE'], 0.0), 1.0), text=f"Efficiency (ROE): {row['ROE']:.1%}")
     else:
         st.info("Run Analysis in Tab 1.")
