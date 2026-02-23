@@ -24,15 +24,15 @@ def generate_recommendation(ticker_stats, macro):
     
     # 2026 'Quality' Logic
     if mos_pct > 0.25 and fcf_yield > 0.08:
-        return "ELITE BUY", "Deep Value + High Cash Flow", "green"
+        return "ELITE BUY", "Deep Value + High Cash Flow", "green", mos_pct
     elif mos_pct > 0.15:
-        return "STRONG BUY", "Significant Margin of Safety", "green"
+        return "STRONG BUY", "Significant Margin of Safety", "green", mos_pct
     elif fcf_yield < 0 and mos_pct > 0.10:
-        return "VALUE TRAP", "Cheap but burning cash", "orange"
+        return "VALUE TRAP", "Cheap but burning cash", "orange", mos_pct
     elif mos_pct < -0.10:
-        return "OVERVALUED", "Market price exceeds fair value", "red"
+        return "OVERVALUED", "Market price exceeds fair value", "red", mos_pct
     else:
-        return "HOLD", "Fairly valued/Wait for dip", "gray"
+        return "HOLD", "Fairly valued/Wait for dip", "gray", mos_pct
 
 def calculate_alpha_score(ticker_stats, macro, dynamic_ratings):
     intrinsic = ticker_stats.get('Intrinsic', 0)
