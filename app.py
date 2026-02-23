@@ -16,12 +16,35 @@ with st.spinner("Initializing S&P 500 Database..."):
 
 import pipeline
 
-st.subheader("📊 Live Intelligence Pulse")
-if st.button("Refresh Intelligence"):
-    trades = pipeline.fetch_politician_trades()
-    if not trades.empty:
-        st.write("Recent Congressional Activity:")
-        st.dataframe(trades, use_container_width=True)
+#st.subheader("📊 Live Intelligence Pulse")
+#if st.button("Refresh Intelligence"):
+#    trades = pipeline.fetch_politician_trades()
+#    if not trades.empty:
+#        st.write("Recent Congressional Activity:")
+#        st.dataframe(trades, use_container_width=True)
+#    
+#    macro = pipeline.fetch_macro_signals()
+#    st.write(f"Market Volatility (VIX): {macro['VIX']:.2f}")
+
+# Wrap intelligence in a container to prevent layout jumping
+with st.container():
+    st.divider()
+    st.subheader("📊 Live Intelligence Pulse")
     
-    macro = pipeline.fetch_macro_signals()
-    st.write(f"Market Volatility (VIX): {macro['VIX']:.2f}")
+    if st.button("Refresh Intelligence"):
+        with st.spinner("Scanning Capitol Hill & Macro signals..."):
+            trades = pipeline.fetch_politician_trades()
+            macro = pipeline.fetch_macro_signals()
+            
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                st.metric("Market Volatility (VIX)", f"{macro['VIX']:.2f}")
+                st.metric("10Y Treasury Yield", f"{macro['10Y_Yield']:.2f}%")
+            
+            with col2:
+                if not trades.empty:
+                    st.write("Recent Congressional Trades:")
+                    st.dataframe(trades[['politician', 'asset', 'txType', 'value']], use_container_width=True)
+
+# Add empty space at the bottom to force scrollability
+st.markdown("<br><br><br>", unsafe_allow_html=True)

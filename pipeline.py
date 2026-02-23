@@ -1,6 +1,7 @@
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
+import yfinance as yf
 
 def fetch_politician_trades():
     """Fetches recent politician trades from Capitol Trades JSON API."""
