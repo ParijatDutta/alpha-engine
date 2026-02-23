@@ -11,8 +11,8 @@ def calculate_intrinsic_value_dcf(eps, growth_rate, discount_rate=0.09):
     return total_pv + terminal_value
 
 def generate_recommendation(ticker_stats, macro):
-    intrinsic = ticker_stats['intrinsic_value']
-    price = ticker_stats['price']
+    intrinsic = ticker_stats.get('intrinsic_value') or ticker_stats.get('Intrinsic', 0)
+    price = ticker_stats.get('price') or ticker_stats.get('Price', 0)
     mos_pct = (intrinsic - price) / intrinsic if intrinsic > 0 else 0
     trend = ticker_stats.get('trend', "")
     div_yield = ticker_stats.get('div_yield', 0)

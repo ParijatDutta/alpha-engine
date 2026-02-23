@@ -4,6 +4,7 @@ import os
 import database
 import pipeline
 import engine
+import plotly.express as px
 
 # --- 1. SESSION STATE INITIALIZATION ---
 # This keeps data alive when you switch between tabs
@@ -79,6 +80,21 @@ with tab3:
     st.header("🏛️ Intelligence Hub: Alpha Grid")
     if st.session_state.final_report:
         df_alpha = pd.DataFrame(st.session_state.final_report)
+
+        st.subheader("🗺️ Sector Value Heatmap")
+        st.caption("Size = Tickers in Sector | Color = Margin of Safety (Green is Cheaper)")
+        
+        fig = px.treemap(
+            df_alpha, 
+            path=[px.Constant("Market"), 'Sector', 'Ticker'], 
+            values='Price', # Sizing by price (or you can add MarketCap later)
+            color='MOS',
+            color_continuous_scale='RdYlGn', # Red to Yellow to Green
+            color_continuous_midpoint=0,
+            hover_data=['Action', 'Intrinsic']
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
         df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
 
         grid_cols = st.columns(3) 

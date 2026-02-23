@@ -28,10 +28,21 @@ def get_enriched_data(tickers):
             current_price = info.get("currentPrice") or info.get("previousClose")
             ma_50 = hist['Close'].tail(50).mean()
             ma_200 = hist['Close'].tail(200).mean()
+
+            # Financial Strength Metrics
+            fcf = info.get("freeCashflow", 0)
+            shares = info.get("sharesOutstanding", 1)
+            fcf_yield = fcf / (info.get("marketCap", 1)) if info.get("marketCap") else 0
+            
+            # Dividend Safety (Payout Ratio < 75% is usually safe)
+            payout_ratio = info.get("payoutRatio", 0)
             
             enriched_results.append({
                 "Symbol": t,
                 "Price": current_price,
+                "FCF_Yield": fcf_yield,
+                "Payout_Ratio": payout_ratio,
+                "DivSafe": "✅ Safe" if payout_ratio < 0.75 else "⚠️ High",
                 "EPS": info.get("trailingEps", 0),
                 "GrowthRate": info.get("earningsGrowth", 0.15), # 2026 avg is ~15%
                 "ROE": info.get("returnOnEquity", 0),
