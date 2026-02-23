@@ -31,18 +31,22 @@ with tab1:
             # Fetch for top 20 to stay within memory/time limits
             tickers = df_metadata['Symbol'].head(20).tolist()
             fundamentals = database.get_enriched_data(tickers)
-            st.session_state.macro = pipeline.fetch_macro_signals()
-            
-            # Clear and rebuild report in session state
             st.session_state.final_report = [] 
             for _, row in fundamentals.iterrows():
                 intrinsic = engine.calculate_intrinsic_value_dcf(row['EPS'], row['GrowthRate'])
                 ticker_stats = {'price': row['Price'], 'intrinsic_value': intrinsic, 'roe': row['ROE']}
-                rec, reason = engine.generate_recommendation(ticker_stats, st.session_state.macro)
+                
+                # FIX: Unpack 4 values instead of 2
+                rec, reason, color, mos = engine.generate_recommendation(ticker_stats, st.session_state.macro)
                 
                 st.session_state.final_report.append({
-                    "Ticker": row['Symbol'], "Price": row['Price'], 
-                    "Intrinsic": round(intrinsic, 2), "Action": rec, "Logic": reason,
+                    "Ticker": row['Symbol'], 
+                    "Price": row['Price'], 
+                    "Intrinsic": round(intrinsic, 2), 
+                    "Action": rec, 
+                    "Logic": reason,
+                    "Color": color,
+                    "MOS": mos,
                     "ROE": row['ROE']
                 })
         st.success("Analysis Complete! Check Tab 3.")
@@ -66,39 +70,35 @@ with tab2:
 
 # --- TAB 3: INTELLIGENCE HUB (THE BRAIN) ---
 with tab3:
-    st.header("🏛️ Intelligence Hub: Conviction Grid")
+    st.header("🏛️ Intelligence Hub: Alpha Grid")
     
     if st.session_state.final_report:
         df_alpha = pd.DataFrame(st.session_state.final_report)
         
-        # Scoring & Sorting
-        df_alpha['Alpha Score'] = df_alpha.apply(
-            lambda x: engine.calculate_alpha_score(
-                {'price': x['Price'], 'intrinsic_value': x['Intrinsic'], 'roe': x['ROE']}, 
-                st.session_state.macro
-            ), axis=1
-        )
-        df_alpha = df_alpha.sort_values(by='Alpha Score', ascending=False)
+        # Sort by best opportunity (highest Margin of Safety)
+        df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
 
-        # GRID DISPLAY: 3 cards per row
-        cols = st.columns(3) 
+        # Create 3 columns for the grid
+        grid_cols = st.columns(3) 
+        
         for idx, row in df_alpha.iterrows():
-            # Match the recommendation to a color
-            rec, logic, color, mos = engine.generate_recommendation(
-                {'intrinsic_value': row['Intrinsic'], 'price': row['Price']}, 
-                st.session_state.macro
-            )
-            
-            # Place card in rotating columns
-            with cols[idx % 3]:
+            with grid_cols[idx % 3]:
+                # Use a container with a border for a 'card' feel
                 with st.container(border=True):
-                    st.markdown(f"### :{color}[{row['Ticker']}]")
-                    st.metric("Price", f"${row['Price']}")
-                    st.metric("Intrinsic", f"${row['Intrinsic']}", 
-                              delta=f"{mos:.1%}", delta_color="normal")
+                    # Header with color-coded Ticker
+                    st.markdown(f"### :{row['Color']}[{row['Ticker']}]")
                     
-                    st.markdown(f"**{rec}**")
-                    st.caption(f"MOS: {mos:.1%}")
+                    # Core Metrics
+                    m1, m2 = st.columns(2)
+                    m1.metric("Price", f"${row['Price']}")
+                    m2.metric("Value", f"${row['Intrinsic']}", 
+                              delta=f"{row['MOS']:.1%}", delta_color="normal")
                     
+                    # Status & Action
+                    st.markdown(f"**{row['Action']}**")
+                    st.caption(f"{row['Logic']}")
+                    
+                    # Quality Check
+                    st.progress(min(max(row['ROE'], 0.0), 1.0), text=f"ROE: {row['ROE']:.1%}")
     else:
-        st.info("Run analysis in Tab 1 to populate the Hub.")
+        st.info("Run analysis in Tab 1 to populate this grid.")
