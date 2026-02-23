@@ -1,6 +1,7 @@
 import streamlit as st
 import database
 import pipeline
+import engine
 
 st.set_page_config(page_title="Alpha Engine", layout="wide")
 
@@ -25,6 +26,25 @@ tab1, tab2 = st.tabs(["🎯 Core Screener", "🔭 Live Intelligence"])
 with tab1:
     st.subheader("S&P 500 Universe")
     st.dataframe(df_metadata, use_container_width=True, height=450)
+    if st.button("Generate Recommendations"):
+        with st.spinner("Analyzing S&P 500 fundamentals..."):
+            # For now, we apply this to the first 10 for speed; 
+            # later we will batch this to the database.
+            results = []
+            macro = pipeline.fetch_macro_signals()
+            
+            for index, row in df_metadata.head(10).iterrows():
+                # Mocking fundamental data fetch for the demo
+                # In Phase 5, we'll pull this from a cached fundamental file
+                mock_ticker = {
+                    'price': 150.0, 
+                    'intrinsic_value': 185.0, 
+                    'roe': 0.18
+                }
+                rec, reason = engine.generate_recommendation(mock_ticker, macro)
+                results.append({"Ticker": row['Symbol'], "Action": rec, "Reason": reason})
+                
+            st.table(pd.DataFrame(results))
 
 with tab2:
     st.subheader("🔭 Live Intelligence Scan")
