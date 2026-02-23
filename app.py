@@ -2,6 +2,7 @@ import streamlit as st
 import database
 import pipeline
 import engine
+import pandas as pd
 
 st.set_page_config(page_title="Alpha Engine", layout="wide")
 
