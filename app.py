@@ -81,7 +81,7 @@ with tab3:
         df_alpha = df_alpha.sort_values(by='Alpha Score', ascending=False)
         
         # Display as high-impact metrics
-        for _, row in df_alpha.head(5).iterrows():
+        for _, row in df_alpha.head(20).iterrows():
             with st.expander(f"⭐ {row['Ticker']} - Score: {int(row['Alpha Score'])}/100"):
                 st.write(f"**Recommendation:** {row['Action']}")
                 st.write(f"**Logic:** {row['Logic']}")

@@ -24,17 +24,19 @@ def get_enriched_data(tickers):
     # Note: In a free tier, we limit this to a subset for the first run
     for t in tickers[:20]: # Start with 20 to test stability
         try:
+            # Add a small logic check: if currentPrice is None, try regularMarketPrice
             tk = yf.Ticker(t)
             info = tk.info
-            enriched_results.append({
-                "Symbol": t,
-                "Price": info.get("currentPrice"),
-                "EPS": info.get("trailingEps"),
-                "BVPS": info.get("bookValue"),
-                "ROE": info.get("returnOnEquity"),
-                "MarketCap": info.get("marketCap")
-            })
+            price = info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose")
+            
+            if price: # Only add if we actually found a price
+                enriched_results.append({
+                    "Symbol": t,
+                    "Price": price,
+                    "EPS": info.get("trailingEps", 0),
+                    "BVPS": info.get("bookValue", 0),
+                    "ROE": info.get("returnOnEquity", 0),
+                })
         except:
             continue
-            
     return pd.DataFrame(enriched_results)
