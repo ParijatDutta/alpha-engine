@@ -115,8 +115,14 @@ with tab3:
                     col1.caption(f"FCF Yield: {fcf_val:.1%}")
                     col2.caption(f"Div: {row['DivSafe']}")
                     
-                    mos_delta = row['Intrinsic'] - row['Price']
-                    st.metric("Price", f"${row['Price']}", delta=f"${mos_delta:.2f}")
+                    price_gap = row['Intrinsic'] - row['Price']
+
+                    st.metric(
+                        label="Price vs Intrinsic", 
+                        value=f"${row['Price']}", 
+                        delta=round(price_gap, 2), # Pass as a number, not a string
+                        delta_color="normal"       # 'normal' means Green for + and Red for -
+                    )
                     st.progress(min(max(row['ROE'], 0.0), 1.0), text=f"Efficiency (ROE): {row['ROE']:.1%}")
     else:
         st.info("Run Analysis in Tab 1.")
