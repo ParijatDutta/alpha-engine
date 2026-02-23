@@ -35,3 +35,22 @@ def generate_recommendation(ticker_data, macro_data):
         return "SELL / OVERVALUED", "Price significantly exceeds intrinsic value."
     
     return "HOLD", "Trading near fair value."
+
+def calculate_alpha_score(ticker_stats, macro):
+    """Generates a 0-100 score based on Value, Quality, and Macro risk."""
+    score = 50 # Base score
+    
+    # 1. Valuation Component (up to +25 or -25)
+    margin = (ticker_stats['intrinsic_value'] - ticker_stats['price']) / ticker_stats['price']
+    score += min(max(margin * 100, -25), 25)
+    
+    # 2. Quality Component (ROE) (up to +15)
+    if ticker_stats['roe'] > 0.20: score += 15
+    elif ticker_stats['roe'] > 0.10: score += 5
+    
+    # 3. Macro Penalty (VIX)
+    vix = macro.get('VIX', 20)
+    if vix > 25: score -= 10
+    if vix > 35: score -= 25
+    
+    return max(0, min(100, score))

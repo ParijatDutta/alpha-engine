@@ -22,7 +22,7 @@ with st.spinner("Loading Database..."):
     df_metadata = database.initialize_sp500()
 
 # Use tabs to organize data and keep the page 'short' (fixes scrolling)
-tab1, tab2 = st.tabs(["🎯 Core Screener", "🔭 Live Intelligence"])
+tab1, tab2, tab3 = st.tabs(["🎯 Core Screener", "🔭 Live Intelligence", "🏛️ Intelligence Hub"])
 
 with tab1:
     st.subheader("S&P 500 Universe")
@@ -79,3 +79,29 @@ with tab2:
                 st.dataframe(trades.head(10), use_container_width=True, height=400)
             else:
                 st.error("Access Denied. Capitol Trades blocked the cloud IP. Try again in 5 mins.")
+
+with tab3:
+    st.header("Top Alpha Signals")
+    if 'final_report' in locals() or st.button("Re-calculate Alpha"):
+        # We use the results from the fetch in Tab 1
+        df_alpha = pd.DataFrame(final_report)
+        
+        # Add the Score using the new engine logic
+        df_alpha['Alpha Score'] = df_alpha.apply(
+            lambda x: engine.calculate_alpha_score(
+                {'price': x['Price'], 'intrinsic_value': x['Intrinsic'], 'roe': 0.15}, 
+                macro
+            ), axis=1
+        )
+        
+        # Sort by the best opportunities
+        df_alpha = df_alpha.sort_values(by='Alpha Score', ascending=False)
+        
+        # Display as a "Leaderboard"
+        for _, row in df_alpha.head(5).iterrows():
+            with st.expander(f"⭐ {row['Ticker']} - Score: {int(row['Alpha Score'])}/100"):
+                col1, col2 = st.columns(2)
+                col1.metric("Current Price", f"${row['Price']}")
+                col1.metric("Intrinsic Value", f"${row['Intrinsic']}")
+                col2.write(f"**Action:** {row['Action']}")
+                col2.write(f"**Rationale:** {row['Logic']}")
