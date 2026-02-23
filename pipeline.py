@@ -45,3 +45,31 @@ def fetch_macro_signals():
         }
     except:
         return {"VIX": 0.0, "10Y_Yield": 0.0}
+    
+    
+def get_dynamic_sector_ratings():
+    # SPDR Sector ETFs representing the 11 S&P 500 sectors
+    sectors = {
+        "Information Technology": "XLK", "Health Care": "XLV",
+        "Financials": "XLF", "Consumer Discretionary": "XLY",
+        "Communication Services": "XLC", "Industrials": "XLI",
+        "Consumer Staples": "XLP", "Energy": "XLE",
+        "Real Estate": "XLRE", "Materials": "XLB", "Utilities": "XLU"
+    }
+    
+    ratings = {}
+    for name, ticker in sectors.items():
+        try:
+            data = yf.Ticker(ticker).history(period="1mo")
+            # Calculate 1-month returns
+            start_price = data['Close'].iloc[0]
+            end_price = data['Close'].iloc[-1]
+            returns = (end_price - start_price) / start_price
+            
+            # Normalize: Return of 5% becomes 1.05 multiplier
+            # We cap it between 0.8 and 1.2 to avoid extreme swings
+            multiplier = 1.0 + returns
+            ratings[name] = min(max(multiplier, 0.8), 1.2)
+        except:
+            ratings[name] = 1.0
+    return ratings

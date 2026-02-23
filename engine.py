@@ -29,21 +29,17 @@ def generate_recommendation(ticker_stats, macro):
     else:
         return "NEUTRAL", "Fairly priced.", "gray", mos_pct
 
-def calculate_alpha_score(ticker_stats, macro):
-    """Generates a 0-100 score based on Value, Quality, and Macro risk."""
-    score = 50 # Base score
+def calculate_alpha_score(ticker_stats, macro, dynamic_ratings):
+    # Core Math: Margin of Safety (MOS)
+    mos = (ticker_stats['intrinsic_value'] - ticker_stats['price']) / ticker_stats['intrinsic_value']
+    base_score = mos * 100
     
-    # 1. Valuation Component (up to +25 or -25)
-    margin = (ticker_stats['intrinsic_value'] - ticker_stats['price']) / ticker_stats['price']
-    score += min(max(margin * 100, -25), 25)
+    # Sector Influence: Dynamic look-up
+    sector = ticker_stats.get('Sector', "General")
+    multiplier = dynamic_ratings.get(sector, 1.0)
     
-    # 2. Quality Component (ROE) (up to +15)
-    if ticker_stats['roe'] > 0.20: score += 15
-    elif ticker_stats['roe'] > 0.10: score += 5
+    # Quality Filter: Bonus for high ROE
+    roe_bonus = 5 if ticker_stats.get('roe', 0) > 0.20 else 0
     
-    # 3. Macro Penalty (VIX)
-    vix = macro.get('VIX', 20)
-    if vix > 25: score -= 10
-    if vix > 35: score -= 25
-    
-    return max(0, min(100, score))
+    final_score = (base_score * multiplier) + roe_bonus
+    return round(min(max(final_score, 0), 100), 2)

@@ -27,28 +27,34 @@ with tab1:
     st.dataframe(df_metadata, use_container_width=True, height=300)
     
     if st.button("Generate Recommendations"):
+        with st.spinner("Calculating Dynamic Sector Heatmap..."):
+            # Get fresh 2026 sector data
+            dynamic_ratings = pipeline.get_dynamic_sector_ratings()
+
         with st.spinner("Analyzing Fundamentals..."):
             # Fetch for top 20 to stay within memory/time limits
             tickers = df_metadata['Symbol'].head(20).tolist()
             fundamentals = database.get_enriched_data(tickers)
             st.session_state.final_report = [] 
             for _, row in fundamentals.iterrows():
-                intrinsic = engine.calculate_intrinsic_value_dcf(row['EPS'], row['GrowthRate'])
-                ticker_stats = {'price': row['Price'], 'intrinsic_value': intrinsic, 'roe': row['ROE']}
+                # Use .get() to avoid KeyErrors if one fetch fails
+                ticker_data = {
+                    "Ticker": row['Symbol'],
+                    "Price": row['Price'],
+                    "Intrinsic": round(engine.calculate_intrinsic_value_dcf(row['EPS'], row.get('GrowthRate', 0.05)), 2),
+                    "ROE": row.get('ROE', 0),
+                    "DivYield": row.get('DivYield', 0),
+                    "Trend": row.get('Trend', "N/A"), # Crucial fix
+                    "Sector": row.get('Sector', "General")
+                }
                 
-                # FIX: Unpack 4 values instead of 2
-                rec, reason, color, mos = engine.generate_recommendation(ticker_stats, st.session_state.macro)
+                # Get recommendation using the new multi-factor brain
+                rec, logic, color, mos = engine.generate_recommendation(ticker_data, st.session_state.macro)
+                score = engine.calculate_alpha_score(ticker_data, st.session_state.macro, dynamic_ratings)
                 
-                st.session_state.final_report.append({
-                    "Ticker": row['Symbol'], 
-                    "Price": row['Price'], 
-                    "Intrinsic": round(intrinsic, 2), 
-                    "Action": rec, 
-                    "Logic": reason,
-                    "Color": color,
-                    "MOS": mos,
-                    "ROE": row['ROE']
-                })
+                # Store everything
+                ticker_data.update({"Action": rec, "Logic": logic, "Color": color, "MOS": mos, "AlphaScore": score})
+                st.session_state.final_report.append(ticker_data)
         st.success("Analysis Complete! Check Tab 3.")
 
 # --- TAB 2: POLITICIAN TRADES (AUTOMATED) ---
