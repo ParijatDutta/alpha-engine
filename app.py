@@ -105,7 +105,7 @@ with tab3:
         grid_cols = st.columns(3) 
         for idx, row in df_alpha.iterrows():
             with grid_cols[idx % 3]:
-                action, logic, color = engine.generate_recommendation(row, st.session_state.macro)
+                action, logic, color, mos_fetch = engine.generate_recommendation(row, st.session_state.macro)
                 with st.container(border=True):
                     # Card Header
                     st.markdown(f"### :{row['Color']}[{row['Ticker']} - {action}]")
