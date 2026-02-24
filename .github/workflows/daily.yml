@@ -30,20 +30,24 @@ jobs:
         
       - name: Commit and Push
         run: |
+          # 1. Setup identity
           git config --local user.name 'github-actions[bot]'
           git config --local user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # 1. Pull latest changes to sync with remote
-          git pull --rebase origin main
+          # 2. Sync with remote explicitly
+          git fetch origin main
           
-          # 2. Only commit if there are actual data changes
+          # 3. Check for changes
           if git diff --quiet daily_trades.csv; then
-            echo "No changes in data. Skipping."
+            echo "No new trades found. Skipping update."
             exit 0
           fi
-          
+
+          # 4. Commit changes
           git add daily_trades.csv
           git commit -m "Auto-update trade data: $(date +'%Y-%m-%d')"
           
-          # 3. Push the synced history
+          # 5. The "Power Push": Rebase and Push
+          # This handles the "fetch first" error by forcing your change onto the tip
+          git pull --rebase origin main
           git push origin main
