@@ -4,13 +4,11 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
-  scrape:
+  scrape_and_update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Essential permission
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,13 +24,26 @@ jobs:
       - name: Run Scraper
         run: python cron_scraper.py
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Auto-update trade data"
-          title: "📈 Daily Trade Data Sync"
-          branch: "automated-data-update"
-          delete-branch: true
-          # This automatically merges if there are no conflicts
-          body: "Automated update of daily_trades.csv"
+      - name: Upload Data via API (Bypass Git Push)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Get the current file's 'sha' (required for the API to update)
+          SHA=$(gh api repos/${{ github.repository }}/contents/daily_trades.csv -q .sha || echo "none")
+
+          # 2. Encode the new CSV data to Base64
+          CONTENT=$(base64 -w 0 daily_trades.csv)
+
+          # 3. Use the GitHub API to overwrite the file directly
+          if [ "$SHA" == "none" ]; then
+            # Create the file if it doesn't exist
+            gh api --method PUT /repos/${{ github.repository }}/contents/daily_trades.csv \
+              -f message="Auto-create trades" \
+              -f content="$CONTENT"
+          else
+            # Update the file if it does exist
+            gh api --method PUT /repos/${{ github.repository }}/contents/daily_trades.csv \
+              -f message="Auto-update trades: $(date +'%Y-%m-%d')" \
+              -f content="$CONTENT" \
+              -f sha="$SHA"
+          fi
