@@ -30,8 +30,19 @@ jobs:
         
       - name: Commit and Push
         run: |
+          # 1. Setup identity
           git config --local user.name 'github-actions[bot]'
           git config --local user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # 2. Check if there are actually changes to avoid "nothing to commit" errors
+          if git diff --quiet daily_trades.csv; then
+            echo "No changes detected in daily_trades.csv. Skipping commit."
+            exit 0
+          fi
+
+          # 3. Add and commit
           git add daily_trades.csv
-          git commit -m "Auto-update trade data" || exit 0
+          git commit -m "Auto-update trade data: $(date +'%Y-%m-%d')"
+          
+          # 4. Push using the PAT-authenticated remote
           git push origin main
