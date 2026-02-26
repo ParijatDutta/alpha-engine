@@ -63,14 +63,15 @@ with tab1:
                 
                 # --- STEP 3: Run the Engine Brain ---
                 # Pass the ticker_data dictionary to get the labels
-                rec, logic, color, _ = engine.generate_recommendation(ticker_data, st.session_state.macro)
+                #rec, logic, color, _ = engine.generate_recommendation(ticker_data, st.session_state.macro)
+                action, logic, color, mos, buy_at, sell_at = engine.generate_recommendation(ticker_data, st.session_state.macro)
                 
                 # Pass ticker_data, macro, and symbol for the final score
                 score = engine.calculate_alpha_score(ticker_data, st.session_state.macro, row['Symbol'])
                 
                 # --- STEP 4: Store results ---
                 ticker_data.update({
-                    "Action": rec, 
+                    "Action": action, 
                     "Logic": logic, 
                     "Color": color, 
                     "AlphaScore": score
