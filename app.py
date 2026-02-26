@@ -133,44 +133,29 @@ with tab3:
         grid_cols = st.columns(3) 
         for idx, row in df_alpha.reset_index().iterrows():
             with grid_cols[idx % 3]:
-                # Color Setup
-                a_color = "green" if "BUY" in row['Action'] else "red" if "SELL" in row['Action'] else "orange"
-                mos_color = "green" if row['MOS'] > 0 else "red"
-
+                # CAPTURE ALL 6 OUTPUTS FROM ENGINE
+                action, logic, color, mos, buy_at, sell_at = engine.generate_recommendation(row, st.session_state.macro)
+                
                 with st.container(border=True):
-                    # Header row: Ticker and Badge
-                    col_t1, col_t2 = st.columns([1, 1])
-                    col_t1.subheader(row['Ticker'])
-                    col_t2.markdown(f"<div style='text-align:right;'><span style='background-color:{a_color}; color:white; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:bold;'>{row['Action']}</span></div>", unsafe_allow_html=True)
+                    st.markdown(f"### :{color}[{row['Ticker']} - {action}]")
                     
-                    st.write(f"**Alpha Score:** `{int(row['AlphaScore'])}/100`")
+                    # THE "WHEN PRICE IS XXX" DISPLAY
+                    st.write(f"🎯 **Target Entry:** :green[**${buy_at}**]")
+                    st.write(f"🎯 **Target Exit:** :red[**${sell_at}**]")
                     
-                    # Main Valuation Metric
-                    price_gap = row['intrinsic_value'] - row['Price']
                     st.metric(
-                        label="Fair Value Gap", 
+                        label="Current vs Fair Value", 
                         value=f"${row['Price']:.2f}", 
-                        delta=f"{price_gap:+.2f} ({row['MOS']:.1%})",
+                        delta=f"Fair Value: ${row['intrinsic_value']:.2f}",
                         delta_color="normal"
                     )
                     
-                    # Dividend and Efficiency Section
-                    st.markdown("---")
+                    st.info(f"**Engine Logic:** {logic}")
+                    
+                    # Metric Row
                     c1, c2 = st.columns(2)
-                    c1.caption("Yield & Safety")
-                    c1.write(f"**{row['DivYield']:.2%}**")
-                    c1.caption(f"{row['DivSafe']}")
-                    
-                    c2.caption("Quality (ROE)")
-                    c2.write(f"**{row['roe']:.1%}**")
-                    
-                    # Strategy Note
-                    st.info(f"**Strategy:** {row['Logic']}")
-
-                    # Politician / Congress Check
-                    pol_bonus = engine.calculate_politician_bonus(row['Ticker'])
-                    if pol_bonus > 0:
-                        st.write("🏛️ :green[**Congress Buy Detected**]")
+                    c1.caption(f"Yield: {row.get('DivYield', 0):.2%}")
+                    c2.caption(f"ROE: {row.get('roe', 0):.1%}") # Syntax fixed here too
                     
                     st.progress(row['AlphaScore'] / 100)
     else:

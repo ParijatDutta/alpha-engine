@@ -2,15 +2,14 @@ import pandas as pd
 import os
 
 def calculate_politician_bonus(ticker, trades_file="daily_trades.csv"):
-    """Scans the daily trades file for politician activity on a specific ticker."""
+    """Scans the daily trades file for politician activity."""
     if not os.path.exists(trades_file):
         return 0
-    
     try:
         df = pd.read_csv(trades_file)
-        # Filter trades for this specific ticker
-        # Note: Capitol Trades columns are usually 'asset' or 'symbol'
-        ticker_trades = df[df['asset'].str.contains(ticker, na=False, case=False)]
+        # Handle potential column name variations from different scrapers
+        col = 'asset' if 'asset' in df.columns else 'symbol'
+        ticker_trades = df[df[col].str.contains(ticker, na=False, case=False)]
         
         if ticker_trades.empty:
             return 0
@@ -19,83 +18,87 @@ def calculate_politician_bonus(ticker, trades_file="daily_trades.csv"):
         for _, trade in ticker_trades.iterrows():
             tx_type = str(trade.get('txType', '')).lower()
             if 'buy' in tx_type or 'purchase' in tx_type:
-                bonus += 10 # Bonus for "Smart Money" following
+                bonus += 10 
             elif 'sell' in tx_type:
-                bonus -= 5  # Penalty for exits
-        
-        return max(-15, min(20, bonus)) # Cap the bonus at +20 or -15
+                bonus -= 5  
+        return max(-15, min(20, bonus))
     except:
         return 0
 
 def calculate_intrinsic_value_dcf(eps, growth_rate, shares_outstanding):
-    if eps <= 0 or shares_outstanding <= 0:
-        return 0
-    
-    # 1. Project Earnings for 5 years
-    # 2. Terminal Value: Assume we sell the company at year 5 for 20x earnings
-    # 3. Discount everything back at 10% (standard hurdle rate)
+    """5-Year Exit Multiplier DCF."""
+    if eps <= 0: return 0
     
     discount_rate = 0.10
     terminal_multiple = 20
     years = 5
     
-    # Calculate Year 5 Earnings
+    # Project future earnings and discount back
     future_eps = eps * ((1 + growth_rate) ** years)
-    
-    # Calculate Terminal Value per share
     terminal_value = future_eps * terminal_multiple
-    
-    # Discount Terminal Value back to today
     intrinsic_value = terminal_value / ((1 + discount_rate) ** years)
     
     return round(intrinsic_value, 2)
 
-def generate_recommendation(ticker_stats, macro):
-    # Use .get to check both naming conventions to be safe
-    intrinsic = ticker_stats.get('Intrinsic', 0)
-    price = ticker_stats.get('Price', 0)
-    fcf_yield = ticker_stats.get('FCF_Yield', 0)
-    div_safe = ticker_stats.get('DivSafe', "")
-
-    mos_pct = (intrinsic - price) / intrinsic if intrinsic > 0 else 0
-
-    # 2026 Logic: ELITE status requires MOS > 30% and Bullish Trend
-    trend = ticker_stats.get('Trend', "")
+def generate_recommendation(ticker_data, macro):
+    """
+    Determines Action and specific Buy/Sell price targets.
+    Factors in Politician activity to adjust thresholds.
+    """
+    price = float(ticker_data.get('Price', 0))
+    iv = float(ticker_data.get('intrinsic_value', 0))
+    ticker = ticker_data.get('Ticker', 'Unknown')
     
-    # 2026 'Quality' Logic
-    if mos_pct > 0.25 and fcf_yield > 0.08:
-        return "ELITE BUY", "Deep Value + High Cash Flow", "green", mos_pct
-    elif mos_pct > 0.15:
-        return "STRONG BUY", "Significant Margin of Safety", "green", mos_pct
-    elif fcf_yield < 0 and mos_pct > 0.10:
-        return "VALUE TRAP", "Cheap but burning cash", "orange", mos_pct
-    elif mos_pct < -0.10:
-        return "OVERVALUED", "Market price exceeds fair value", "red", mos_pct
+    # Calculate Politician Influence
+    pol_bonus = calculate_politician_bonus(ticker)
+    
+    # Thresholds (Standard is 15% Margin of Safety)
+    # If politicians are buying, we reduce the required MOS by 5-10%
+    buy_threshold = 0.85 + (pol_bonus / 200) 
+    sell_threshold = 1.15 + (pol_bonus / 200)
+    
+    buy_at = round(iv * buy_threshold, 2)
+    sell_at = round(iv * sell_threshold, 2)
+    mos_pct = (iv - price) / iv if iv > 0 else 0
+
+    # Logic Engine with Politician Awareness
+    if price <= buy_at:
+        action = "STRONG BUY"
+        color = "green"
+        pol_msg = " + Hill Support" if pol_bonus > 0 else ""
+        logic = f"Undervalued. Entry below ${buy_at}{pol_msg}."
+    elif price > sell_at:
+        action = "SELL"
+        color = "red"
+        logic = f"Overvalued. Target exit above ${sell_at}."
+    elif pol_bonus >= 10 and price < iv:
+        action = "CONGRESSIONAL BUY"
+        color = "green"
+        logic = f"Politician accumulation detected below ${iv}."
     else:
-        return "HOLD", "Fairly valued/Wait for dip", "gray", mos_pct
+        action = "HOLD"
+        color = "orange"
+        logic = f"Fairly Valued. Buy < ${buy_at} | Sell > ${sell_at}."
+
+    return action, logic, color, mos_pct, buy_at, sell_at
 
 def calculate_alpha_score(ticker_stats, macro, ticker_symbol):
-    """Generates a 0-100 score with defensive key checks."""
+    """Final 0-100 Intelligence Score."""
     score = 50 
-    
-    # Use .get() to prevent KeyErrors if data is missing
-    price = ticker_stats.get('price', 0)
+    price = ticker_stats.get('Price', 0)
     intrinsic = ticker_stats.get('intrinsic_value', 0)
     roe = ticker_stats.get('roe', 0)
 
-    # 1. Valuation Gap
+    # 1. Valuation Component
     if intrinsic > 0 and price > 0:
         margin = (intrinsic - price) / price
         score += min(max(margin * 100, -25), 25)
     
-    # 2. Quality (ROE)
+    # 2. Quality & Macro
     if roe > 0.15: score += 15
+    if macro.get('VIX', 20) > 25: score -= 10
     
-    # 3. Macro Penalty
-    vix = macro.get('VIX', 20)
-    if vix > 25: score -= 10
-    
-    # 4. Politician Bonus
+    # 3. Politician Bonus (Direct Impact)
     score += calculate_politician_bonus(ticker_symbol)
     
-    return max(0, min(100, score))
+    return int(max(0, min(100, score)))
