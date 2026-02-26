@@ -156,7 +156,7 @@ with tab3:
             ).format({"Avg Alpha": "{:.1f}"})
             
             st.dataframe(styled_stats, use_container_width=True)
-            
+
         with col_b:
             best_sector = sector_stats.index[0]
             avg_val = sector_stats['Avg Alpha'].iloc[0]
@@ -208,7 +208,7 @@ with tab3:
                     elif pol_bonus < 0:
                         col2.markdown("📉 **Politician Sell**")
 
-                    price_gap = row['Intrinsic'] - row['Price']
+                    price_gap = row['intrinsic_value'] - row['Price']
                     st.metric(
                         label="Price vs Intrinsic", 
                         value=f"${row['Price']:.2f}", 
