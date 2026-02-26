@@ -131,6 +131,27 @@ with tab3:
         except Exception as e:
             st.warning(f"Treemap pending: Data structure sync required. (Error: {e})")
 
+        # --- SECTOR INSIGHT SUMMARY ---
+        st.divider()
+        st.subheader("📊 Sector Intelligence")
+        
+        # Calculate average scores per sector
+        sector_stats = df_alpha.groupby('Sector').agg({
+            'AlphaScore': 'mean',
+            'Ticker': 'count'
+        }).rename(columns={'Ticker': 'Stock Count', 'AlphaScore': 'Avg Alpha'}).sort_values('Avg Alpha', ascending=False)
+
+        col_a, col_b = st.columns([1, 2])
+        
+        with col_a:
+            st.write("**Top Sectors by Alpha**")
+            st.dataframe(sector_stats.style.background_gradient(cmap='RdYlGn', subset=['Avg Alpha']), use_container_width=True)
+            
+        with col_b:
+            best_sector = sector_stats.index[0]
+            avg_val = sector_stats['Avg Alpha'].iloc[0]
+            st.info(f"💡 **Opportunity Found:** The **{best_sector}** sector is showing the highest relative strength with an average Alpha Score of **{avg_val:.1f}**. Consider deeper fundamental analysis here.")
+
         # --- 2. SEARCH & FILTER ---
         st.divider()
         search_query = st.text_input("🔍 Search Ticker or Sector", "")
@@ -167,7 +188,7 @@ with tab3:
                     
                     # Core Metrics
                     col1, col2 = st.columns(2)
-                    col1.caption(f"ROE: {row['ROE']:.1%}")
+                    col1.caption(f"ROE: {row['roe']:.1%}")
                     
                     # Display a Politician Icon if a bonus was applied
                     # We check if a bonus exists by recalculating (or you can store it in final_report)
