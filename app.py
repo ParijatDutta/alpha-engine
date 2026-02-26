@@ -39,41 +39,34 @@ with tab1:
             st.session_state.final_report = [] 
 
             for _, row in fundamentals.iterrows():
-                # --- STEP 1: Extract All Data (Fixed Mapping) ---
-                price = float(row.get('Price', 0))
-                eps = float(row.get('EPS', 0))
-                growth = float(row.get('GrowthRate', 0.05))
+                # 1. Clean Growth: If growth is 15.0, make it 0.15
+                raw_growth = row.get('GrowthRate', 0.05)
+                growth = raw_growth / 100 if raw_growth > 1 else raw_growth
                 
-                # Calculate Intrinsic Value
-                iv = engine.calculate_intrinsic_value_dcf(eps, growth, row.get('Shares_Outstanding', 1))
-                mos = (iv - price) / price if price > 0 else 0
+                # 2. Clean ROE & Yield: If 6000, make it 6.0 (still high, but possible)
+                roe = row.get('ROE', 0)
+                roe = roe / 100 if roe > 2 else roe # Cap at 200% for sanity
+                
+                dy = row.get('DivYield', 0)
+                dy = dy / 100 if dy > 0.5 else dy # Cap at 50% for sanity
 
-                # --- STEP 2: Build the Comprehensive Dictionary ---
                 ticker_data = {
                     "Ticker": row['Symbol'],
-                    "Price": price,
-                    "intrinsic_value": round(iv, 2),
-                    "roe": row.get('ROE', 0),
-                    "DivYield": row.get('DivYield', 0),
+                    "Price": float(row.get('Price', 0)),
+                    "intrinsic_value": engine.calculate_intrinsic_value_dcf(row.get('EPS', 0), growth),
+                    "roe": roe,
+                    "DivYield": dy,
                     "DivSafe": row.get('DivSafe', 'Stable'),
-                    "Sector": row.get('Sector', "General"),
-                    "MOS": mos,
-                    "Growth": growth
+                    "Sector": row.get('Sector', 'General')
                 }
                 
-                # --- STEP 3: Run the Engine Brain ---
-                # Pass the ticker_data dictionary to get the labels
-                #rec, logic, color, _ = engine.generate_recommendation(ticker_data, st.session_state.macro)
-                action, logic, color, mos, buy_at, sell_at = engine.generate_recommendation(ticker_data, st.session_state.macro)
-                
-                # Pass ticker_data, macro, and symbol for the final score
+                # Run Engine
+                res = engine.generate_recommendation(ticker_data, st.session_state.macro)
                 score = engine.calculate_alpha_score(ticker_data, st.session_state.macro, row['Symbol'])
                 
-                # --- STEP 4: Store results ---
                 ticker_data.update({
-                    "Action": action, 
-                    "Logic": logic, 
-                    "Color": color, 
+                    "Action": res[0], "Logic": res[1], "Color": res[2], 
+                    "MOS": res[3], "buy_at": res[4], "sell_at": res[5],
                     "AlphaScore": score
                 })
                 st.session_state.final_report.append(ticker_data)
@@ -134,29 +127,26 @@ with tab3:
         grid_cols = st.columns(3) 
         for idx, row in df_alpha.reset_index().iterrows():
             with grid_cols[idx % 3]:
-                # CAPTURE ALL 6 OUTPUTS FROM ENGINE
-                action, logic, color, mos, buy_at, sell_at = engine.generate_recommendation(row, st.session_state.macro)
-                
                 with st.container(border=True):
-                    st.markdown(f"### :{color}[{row['Ticker']} - {action}]")
+                    st.markdown(f"### :{row['Color']}[{row['Ticker']} - {row['Action']}]")
                     
-                    # THE "WHEN PRICE IS XXX" DISPLAY
-                    st.write(f"🎯 **Target Entry:** :green[**${buy_at}**]")
-                    st.write(f"🎯 **Target Exit:** :red[**${sell_at}**]")
+                    # Show the Targets
+                    st.write(f"🎯 **Buy at:** :green[${row['buy_at']:.2f}] | **Sell at:** :red[${row['sell_at']:.2f}]")
                     
                     st.metric(
-                        label="Current vs Fair Value", 
+                        label="Price vs Fair Value", 
                         value=f"${row['Price']:.2f}", 
-                        delta=f"Fair Value: ${row['intrinsic_value']:.2f}",
+                        delta=f"FV: ${row['intrinsic_value']:.2f} ({row['MOS']:.1%})",
                         delta_color="normal"
                     )
                     
-                    st.info(f"**Engine Logic:** {logic}")
+                    st.info(f"**Strategy:** {row['Logic']}")
                     
-                    # Metric Row
+                    # Use Fixed ROE logic here
                     c1, c2 = st.columns(2)
-                    c1.caption(f"Yield: {row.get('DivYield', 0):.2%}")
-                    c2.caption(f"ROE: {row.get('roe', 0):.1%}") # Syntax fixed here too
+                    c1.caption(f"Yield: {row['DivYield']:.2%}")
+                    # FIXED SYNTAX ERROR BELOW
+                    c2.caption(f"ROE: {row['roe']:.1%}") 
                     
                     st.progress(row['AlphaScore'] / 100)
     else:
