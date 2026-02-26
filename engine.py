@@ -75,22 +75,27 @@ def generate_recommendation(ticker_stats, macro):
         return "HOLD", "Fairly valued/Wait for dip", "gray", mos_pct
 
 def calculate_alpha_score(ticker_stats, macro, ticker_symbol):
-    """Generates a 0-100 score including valuation, macro, and politician bonus."""
-    score = 50 # Base
+    """Generates a 0-100 score with defensive key checks."""
+    score = 50 
     
-    # 1. Valuation Gap (Up to +/- 25)
-    margin = (ticker_stats['intrinsic_value'] - ticker_stats['price']) / ticker_stats['price']
-    score += min(max(margin * 100, -25), 25)
+    # Use .get() to prevent KeyErrors if data is missing
+    price = ticker_stats.get('price', 0)
+    intrinsic = ticker_stats.get('intrinsic_value', 0)
+    roe = ticker_stats.get('roe', 0)
+
+    # 1. Valuation Gap
+    if intrinsic > 0 and price > 0:
+        margin = (intrinsic - price) / price
+        score += min(max(margin * 100, -25), 25)
     
-    # 2. Quality (ROE) (Up to +15)
-    if ticker_stats.get('roe', 0) > 0.15: score += 15
+    # 2. Quality (ROE)
+    if roe > 0.15: score += 15
     
-    # 3. Macro Penalty (VIX)
+    # 3. Macro Penalty
     vix = macro.get('VIX', 20)
     if vix > 25: score -= 10
     
-    # 4. POLITICIAN BONUS (NEW)
-    pol_bonus = calculate_politician_bonus(ticker_symbol)
-    score += pol_bonus
+    # 4. Politician Bonus
+    score += calculate_politician_bonus(ticker_symbol)
     
     return max(0, min(100, score))
