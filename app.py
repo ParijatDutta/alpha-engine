@@ -145,7 +145,17 @@ with tab3:
         
         with col_a:
             st.write("**Top Sectors by Alpha**")
-            st.dataframe(sector_stats.style.background_gradient(cmap='RdYlGn', subset=['Avg Alpha']), use_container_width=True)
+            sector_stats['Avg Alpha'] = pd.to_numeric(sector_stats['Avg Alpha'], errors='coerce')
+    
+            # Apply the styling
+            styled_stats = sector_stats.style.background_gradient(
+                cmap='RdYlGn', 
+                subset=['Avg Alpha'],
+                vmin=0, 
+                vmax=100
+            ).format({"Avg Alpha": "{:.1f}"})
+            
+            st.dataframe(styled_stats, use_container_width=True)
             
         with col_b:
             best_sector = sector_stats.index[0]
