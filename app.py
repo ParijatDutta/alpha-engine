@@ -162,7 +162,7 @@ with tab3:
                     c1.caption(f"{row['DivSafe']}")
                     
                     c2.caption("Quality (ROE)")
-                    c2.write(f"**{row['roe']:.1%*}")
+                    c2.write(f"**{row['ROE']:.1%*}")
                     
                     # Strategy Note
                     st.info(f"**Strategy:** {row['Logic']}")
