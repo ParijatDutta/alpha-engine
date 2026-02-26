@@ -1,4 +1,31 @@
 import pandas as pd
+import os
+
+def calculate_politician_bonus(ticker, trades_file="daily_trades.csv"):
+    """Scans the daily trades file for politician activity on a specific ticker."""
+    if not os.path.exists(trades_file):
+        return 0
+    
+    try:
+        df = pd.read_csv(trades_file)
+        # Filter trades for this specific ticker
+        # Note: Capitol Trades columns are usually 'asset' or 'symbol'
+        ticker_trades = df[df['asset'].str.contains(ticker, na=False, case=False)]
+        
+        if ticker_trades.empty:
+            return 0
+            
+        bonus = 0
+        for _, trade in ticker_trades.iterrows():
+            tx_type = str(trade.get('txType', '')).lower()
+            if 'buy' in tx_type or 'purchase' in tx_type:
+                bonus += 10 # Bonus for "Smart Money" following
+            elif 'sell' in tx_type:
+                bonus -= 5  # Penalty for exits
+        
+        return max(-15, min(20, bonus)) # Cap the bonus at +20 or -15
+    except:
+        return 0
 
 def calculate_intrinsic_value_dcf(eps, growth_rate, shares_outstanding):
     if eps <= 0 or shares_outstanding <= 0:
@@ -47,15 +74,23 @@ def generate_recommendation(ticker_stats, macro):
     else:
         return "HOLD", "Fairly valued/Wait for dip", "gray", mos_pct
 
-def calculate_alpha_score(ticker_stats, macro, dynamic_ratings):
-    intrinsic = ticker_stats.get('Intrinsic', 0)
-    price = ticker_stats.get('Price', 0)
-    if intrinsic == 0: return 0
+def calculate_alpha_score(ticker_stats, macro, ticker_symbol):
+    """Generates a 0-100 score including valuation, macro, and politician bonus."""
+    score = 50 # Base
     
-    mos = (intrinsic - price) / intrinsic
-    sector = ticker_stats.get('Sector', 'General')
+    # 1. Valuation Gap (Up to +/- 25)
+    margin = (ticker_stats['intrinsic_value'] - ticker_stats['price']) / ticker_stats['price']
+    score += min(max(margin * 100, -25), 25)
     
-    # Apply the dynamic multiplier we fetched in the button click
-    multiplier = dynamic_ratings.get(sector, 1.0)
+    # 2. Quality (ROE) (Up to +15)
+    if ticker_stats.get('roe', 0) > 0.15: score += 15
     
-    return round((mos * 100) * multiplier, 2)
+    # 3. Macro Penalty (VIX)
+    vix = macro.get('VIX', 20)
+    if vix > 25: score -= 10
+    
+    # 4. POLITICIAN BONUS (NEW)
+    pol_bonus = calculate_politician_bonus(ticker_symbol)
+    score += pol_bonus
+    
+    return max(0, min(100, score))

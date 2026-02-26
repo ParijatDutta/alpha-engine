@@ -80,62 +80,101 @@ with tab2:
 # --- TAB 3: INTELLIGENCE HUB (THE BRAIN) ---
 with tab3:
     st.header("🏛️ Intelligence Hub: Alpha Grid")
+    
     if st.session_state.final_report:
+        # Convert the session report to a DataFrame
         df_alpha = pd.DataFrame(st.session_state.final_report)
 
+        # --- 1. INTEGRATE ALPHA SCORE LOGIC ---
+        # Apply the new scoring logic from engine.py using valuation, macro, and ticker symbol
+        df_alpha['AlphaScore'] = df_alpha.apply(
+            lambda x: engine.calculate_alpha_score(
+                {'price': x['Price'], 'intrinsic_value': x['Intrinsic'], 'roe': x['ROE']}, 
+                st.session_state.macro,
+                x['Ticker']
+            ), axis=1
+        )
+
+        # Add a column for Margin of Safety (MOS) percentage for the Treemap
+        df_alpha['MOS'] = (df_alpha['Intrinsic'] - df_alpha['Price']) / df_alpha['Price']
+
         st.subheader("🗺️ Sector Value Heatmap")
-        st.caption("Size = Price Weight | Color = Margin of Safety (Green = Undervalued)")
+        st.caption("Size = Price Weight | Color = Alpha Score (Green = High Opportunity)")
         
-        # Build the treemap
+        # Build the treemap using AlphaScore as the color metric
         fig = px.treemap(
             df_alpha, 
             path=[px.Constant("Market"), 'Sector', 'Ticker'], 
             values='Price',
-            color='MOS',
+            color='AlphaScore',
             color_continuous_scale='RdYlGn', 
-            color_continuous_midpoint=0,
-            hover_data=['Action', 'Intrinsic', 'AlphaScore']
+            color_continuous_midpoint=50, # 50 is the neutral base in our engine
+            hover_data={
+                'Action': True,
+                'Intrinsic': ':$.2f',
+                'AlphaScore': ':.0f',
+                'MOS': ':.1%'
+            }
         )
         
         fig.update_layout(margin=dict(t=10, l=10, r=10, b=10))
         st.plotly_chart(fig, use_container_width=True)
 
-        df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
-
-        
-        # Search and Filter for 2026 Alpha Engine
+        # --- 2. SEARCH & FILTER ---
+        st.divider()
         search_query = st.text_input("🔍 Search Ticker or Sector", "")
-        sort_by = st.selectbox("Sort by:", ["Margin of Safety", "Alpha Score", "FCF Yield"])
+        sort_by = st.selectbox("Sort by:", ["Alpha Score", "Margin of Safety", "Ticker"])
 
-        # Filter the dataframe before looping
+        # Sorting Logic
+        if sort_by == "Alpha Score":
+            df_alpha = df_alpha.sort_values(by='AlphaScore', ascending=False)
+        elif sort_by == "Margin of Safety":
+            df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
+        else:
+            df_alpha = df_alpha.sort_values(by='Ticker')
+
+        # Filter the dataframe
         if search_query:
-            df_alpha = df_alpha[df_alpha['Ticker'].str.contains(search_query.upper()) | 
-                                df_alpha['Sector'].str.contains(search_query.title())]
+            df_alpha = df_alpha[
+                df_alpha['Ticker'].str.contains(search_query.upper()) | 
+                df_alpha['Sector'].str.contains(search_query.title())
+            ]
             
+        # --- 3. ALPHA GRID CARDS ---
         grid_cols = st.columns(3) 
-        for idx, row in df_alpha.iterrows():
+        for idx, row in df_alpha.reset_index().iterrows():
             with grid_cols[idx % 3]:
-                action, logic, color, mos = engine.generate_recommendation(row, st.session_state.macro)
+                # Determine recommendation text and color
+                # (Note: we use the Action/Logic already stored or recalculate if needed)
                 with st.container(border=True):
-                    # Card Header
-                    st.markdown(f"### :{row['Color']}[{row['Ticker']} - {action}]")
-
-                    st.caption(f"**Strategy:** {logic}")
+                    # Card Header - Color code based on Action
+                    header_color = "green" if "BUY" in row['Action'] else "red" if "SELL" in row['Action'] else "gray"
+                    st.markdown(f"### :{header_color}[{row['Ticker']}]")
+                    st.markdown(f"**Score: {int(row['AlphaScore'])}/100**")
                     
-                    # New row for FCF and Div Safety
+                    st.caption(f"**Strategy:** {row['Logic']}")
+                    
+                    # Core Metrics
                     col1, col2 = st.columns(2)
-                    fcf_val = row.get('FCF_Yield', 0) 
-                    col1.caption(f"FCF Yield: {fcf_val:.1%}")
-                    col2.caption(f"Div: {row['DivSafe']}")
+                    col1.caption(f"ROE: {row['ROE']:.1%}")
                     
-                    price_gap = row['Intrinsic'] - row['Price']
+                    # Display a Politician Icon if a bonus was applied
+                    # We check if a bonus exists by recalculating (or you can store it in final_report)
+                    pol_bonus = engine.calculate_politician_bonus(row['Ticker'])
+                    if pol_bonus > 0:
+                        col2.markdown("🏛️ **Politician Buy**")
+                    elif pol_bonus < 0:
+                        col2.markdown("📉 **Politician Sell**")
 
+                    price_gap = row['Intrinsic'] - row['Price']
                     st.metric(
                         label="Price vs Intrinsic", 
-                        value=f"${row['Price']}", 
-                        delta=round(price_gap, 2), # Pass as a number, not a string
-                        delta_color="normal"       # 'normal' means Green for + and Red for -
+                        value=f"${row['Price']:.2f}", 
+                        delta=round(price_gap, 2),
+                        delta_color="normal"
                     )
-                    st.progress(min(max(row['ROE'], 0.0), 1.0), text=f"Efficiency (ROE): {row['ROE']:.1%}")
+                    
+                    # Progress bar based on Alpha Score
+                    st.progress(row['AlphaScore'] / 100)
     else:
-        st.info("Run Analysis in Tab 1.")
+        st.info("Run Analysis in Tab 1 to populate the Intelligence Hub.")
