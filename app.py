@@ -97,6 +97,7 @@ with tab3:
 
         # Add a column for Margin of Safety (MOS) percentage for the Treemap
         df_alpha['MOS'] = (df_alpha['intrinsic_value'] - df_alpha['Price']) / df_alpha['Price']
+        df_alpha = df_alpha.dropna(subset=['Sector', 'Price', 'AlphaScore'])
 
         st.subheader("🗺️ Sector Value Heatmap")
         st.caption("Size = Price Weight | Color = Alpha Score (Green = High Opportunity)")
