@@ -102,21 +102,13 @@ with tab2:
 
 # --- TAB 3: INTELLIGENCE HUB (THE BRAIN) ---
 with tab3:
+    st.header("🏛️ Intelligence Hub: Alpha Grid")
+    
     if st.session_state.final_report:
         df_alpha = pd.DataFrame(st.session_state.final_report)
         
-        # CLEANUP: Ensure numeric types and drop rows with missing hierarchical data
-        df_alpha['Price'] = pd.to_numeric(df_alpha['Price'], errors='coerce')
-        df_alpha['AlphaScore'] = pd.to_numeric(df_alpha['AlphaScore'], errors='coerce')
-        
-        # Fill any missing sectors to prevent the 'ValueError' in px.treemap
-        df_alpha['Sector'] = df_alpha['Sector'].fillna("Uncategorized")
-        
-        # Drop rows where critical plotting data is missing
-        df_alpha = df_alpha.dropna(subset=['Ticker', 'Sector', 'Price', 'AlphaScore'])
-
+        # --- 1. SECTOR HEATMAP (Restored) ---
         st.subheader("🗺️ Sector Value Heatmap")
-        
         try:
             fig = px.treemap(
                 df_alpha, 
@@ -125,98 +117,55 @@ with tab3:
                 color='AlphaScore',
                 color_continuous_scale='RdYlGn', 
                 color_continuous_midpoint=50,
-                hover_data=['Action', 'MOS', 'AlphaScore']
+                hover_data=['Action', 'MOS']
             )
             st.plotly_chart(fig, use_container_width=True)
-        except Exception as e:
-            st.warning(f"Treemap pending: Data structure sync required. (Error: {e})")
+        except:
+            st.warning("Heatmap updating...")
 
-        # --- SECTOR INSIGHT SUMMARY ---
+        # --- 2. SECTOR INSIGHTS (The New Feature) ---
+        sector_stats = df_alpha.groupby('Sector').agg({'AlphaScore': 'mean', 'Ticker': 'count'}).rename(columns={'Ticker': 'Count', 'AlphaScore': 'Avg Alpha'})
+        st.dataframe(sector_stats.style.background_gradient(cmap='RdYlGn', subset=['Avg Alpha']).format("{:.1f}"), use_container_width=True)
+
+        # --- 3. THE ALPHA GRID (Restored Styling) ---
         st.divider()
-        st.subheader("📊 Sector Intelligence")
-        
-        # Calculate average scores per sector
-        sector_stats = df_alpha.groupby('Sector').agg({
-            'AlphaScore': 'mean',
-            'Ticker': 'count'
-        }).rename(columns={'Ticker': 'Stock Count', 'AlphaScore': 'Avg Alpha'}).sort_values('Avg Alpha', ascending=False)
-
-        col_a, col_b = st.columns([1, 2])
-        
-        with col_a:
-            st.write("**Top Sectors by Alpha**")
-            sector_stats['Avg Alpha'] = pd.to_numeric(sector_stats['Avg Alpha'], errors='coerce')
-    
-            # Apply the styling
-            styled_stats = sector_stats.style.background_gradient(
-                cmap='RdYlGn', 
-                subset=['Avg Alpha'],
-                vmin=0, 
-                vmax=100
-            ).format({"Avg Alpha": "{:.1f}"})
-            
-            st.dataframe(styled_stats, use_container_width=True)
-
-        with col_b:
-            best_sector = sector_stats.index[0]
-            avg_val = sector_stats['Avg Alpha'].iloc[0]
-            st.info(f"💡 **Opportunity Found:** The **{best_sector}** sector is showing the highest relative strength with an average Alpha Score of **{avg_val:.1f}**. Consider deeper fundamental analysis here.")
-
-        # --- 2. SEARCH & FILTER ---
-        st.divider()
-        search_query = st.text_input("🔍 Search Ticker or Sector", "")
-        sort_by = st.selectbox("Sort by:", ["Alpha Score", "Margin of Safety", "Ticker"])
-
-        # Sorting Logic
-        if sort_by == "Alpha Score":
-            df_alpha = df_alpha.sort_values(by='AlphaScore', ascending=False)
-        elif sort_by == "Margin of Safety":
-            df_alpha = df_alpha.sort_values(by='MOS', ascending=False)
-        else:
-            df_alpha = df_alpha.sort_values(by='Ticker')
-
-        # Filter the dataframe
-        if search_query:
-            df_alpha = df_alpha[
-                df_alpha['Ticker'].str.contains(search_query.upper()) | 
-                df_alpha['Sector'].str.contains(search_query.title())
-            ]
-            
-        # --- 3. ALPHA GRID CARDS ---
         grid_cols = st.columns(3) 
         for idx, row in df_alpha.reset_index().iterrows():
             with grid_cols[idx % 3]:
-                # Determine recommendation text and color
-                # (Note: we use the Action/Logic already stored or recalculate if needed)
+                # Dynamic Styling Logic
+                action = row['Action']
+                # Restore the high-visibility color logic
+                card_color = "green" if "BUY" in action else "red" if "SELL" in action else "orange"
+                
                 with st.container(border=True):
-                    # Card Header - Color code based on Action
-                    header_color = "green" if "BUY" in row['Action'] else "red" if "SELL" in row['Action'] else "gray"
-                    st.markdown(f"### :{header_color}[{row['Ticker']}]")
-                    st.markdown(f"**Score: {int(row['AlphaScore'])}/100**")
+                    # Card Header with Color-coded Action
+                    st.markdown(f"### :{card_color}[{row['Ticker']} - {action}]")
+                    st.markdown(f"**Alpha Score: {int(row['AlphaScore'])}/100**")
                     
+                    # Logic & Strategy
                     st.caption(f"**Strategy:** {row['Logic']}")
                     
-                    # Core Metrics
+                    # DIVIDEND & QUALITY ANALYSIS (Restored)
                     col1, col2 = st.columns(2)
-                    col1.caption(f"ROE: {row['roe']:.1%}")
-                    
-                    # Display a Politician Icon if a bonus was applied
-                    # We check if a bonus exists by recalculating (or you can store it in final_report)
-                    pol_bonus = engine.calculate_politician_bonus(row['Ticker'])
-                    if pol_bonus > 0:
-                        col2.markdown("🏛️ **Politician Buy**")
-                    elif pol_bonus < 0:
-                        col2.markdown("📉 **Politician Sell**")
+                    with col1:
+                        st.caption(f"Yield: {row.get('DivYield', 0):.2%}")
+                        st.caption(f"Safety: {row.get('DivSafe', 'N/A')}")
+                    with col2:
+                        st.caption(f"ROE: {row.get('roe', 0):.1%}")
+                        # Politician Tag
+                        pol_bonus = engine.calculate_politician_bonus(row['Ticker'])
+                        if pol_bonus > 0: st.markdown("🏛️ :green[**Congress Buy**]")
 
+                    # VALUATION METRIC (Restored Price vs Intrinsic)
                     price_gap = row['intrinsic_value'] - row['Price']
                     st.metric(
                         label="Price vs Intrinsic", 
                         value=f"${row['Price']:.2f}", 
-                        delta=round(price_gap, 2),
+                        delta=f"{price_gap:+.2f} ({row['MOS']:.1%})",
                         delta_color="normal"
                     )
                     
-                    # Progress bar based on Alpha Score
-                    st.progress(row['AlphaScore'] / 100)
+                    # Conviction Bar
+                    st.progress(row['AlphaScore'] / 100, text="Engine Conviction")
     else:
-        st.info("Run Analysis in Tab 1 to populate the Intelligence Hub.")
+        st.info("Run Analysis in Tab 1 to see recommendations.")
