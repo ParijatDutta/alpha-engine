@@ -37,26 +37,49 @@ with tab1:
             tickers = df_metadata['Symbol'].head(50).tolist()
             fundamentals = database.get_enriched_data(tickers)
             st.session_state.final_report = [] 
+
+            # --- Inside Tab 1 Generate Recommendations Loop ---
             for _, row in fundamentals.iterrows():
-                # Use .get() to avoid KeyErrors if one fetch fails
+                # 1. Fetch Sector explicitly (if row.get fails, use metadata fallback)
+                raw_sector = row.get('Sector')
+                if not raw_sector or raw_sector == "N/A":
+                    # Fallback to the metadata we loaded at the start
+                    meta_match = df_metadata[df_metadata['Symbol'] == row['Symbol']]['GICS Sector'].values
+                    current_sector = meta_match[0] if len(meta_match) > 0 else "Uncategorized"
+                else:
+                    current_sector = raw_sector
+
+                # 2. Build the exact dictionary required by Tab 3
                 ticker_data = {
                     "Ticker": row['Symbol'],
-                    "Price": row['Price'],
-                    "intrinsic_value": round(engine.calculate_intrinsic_value_dcf(row['EPS'], row.get('GrowthRate', 0.05),row.get('Shares_Outstanding', 1)), 2),
-                    "ROE": row.get('ROE', 0),
-                    "DivYield": row.get('DivYield', 0),
-                    "Trend": row.get('Trend', "N/A"), 
-                    "Sector": row.get('Sector', "General"),
-                    "FCF_Yield": row.get('FCF_Yield', 0),    
-                    "DivSafe": row.get('DivSafe', 'N/A')
+                    "Price": float(row.get('Price', 0)),
+                    "intrinsic_value": round(engine.calculate_intrinsic_value_dcf(
+                        row['EPS'], 
+                        row.get('GrowthRate', 0.05),
+                        row.get('Shares_Outstanding', 1)
+                    ), 2),
+                    "roe": row.get('ROE', 0), # Match lowercase engine requirements
+                    "Sector": current_sector, # Critical for Treemap 'path'
+                    "Action": "HOLD",        # Default placeholders
+                    "Logic": "N/A",
+                    "Color": "gray",
+                    "MOS": 0.0,
+                    "AlphaScore": 0
                 }
                 
-                # Get recommendation using the new multi-factor brain
+                # 3. Apply the brain logic
                 rec, logic, color, mos = engine.generate_recommendation(ticker_data, st.session_state.macro)
                 score = engine.calculate_alpha_score(ticker_data, st.session_state.macro, dynamic_ratings)
                 
-                # Store everything
-                ticker_data.update({"Action": rec, "Logic": logic, "Color": color, "MOS": mos, "AlphaScore": score})
+                # 4. Update with results
+                ticker_data.update({
+                    "Action": rec, 
+                    "Logic": logic, 
+                    "Color": color, 
+                    "MOS": mos, 
+                    "AlphaScore": score
+                })
+                
                 st.session_state.final_report.append(ticker_data)
         st.success("Analysis Complete! Check Tab 3.")
 
@@ -79,47 +102,34 @@ with tab2:
 
 # --- TAB 3: INTELLIGENCE HUB (THE BRAIN) ---
 with tab3:
-    st.header("🏛️ Intelligence Hub: Alpha Grid")
-    
     if st.session_state.final_report:
-        # Convert the session report to a DataFrame
         df_alpha = pd.DataFrame(st.session_state.final_report)
-
-        # --- 1. INTEGRATE ALPHA SCORE LOGIC ---
-        # Apply the new scoring logic from engine.py using valuation, macro, and ticker symbol
-        df_alpha['AlphaScore'] = df_alpha.apply(
-            lambda x: engine.calculate_alpha_score(
-                {'price': x['Price'], 'intrinsic_value': x['intrinsic_value'], 'roe': x['ROE']}, 
-                st.session_state.macro,
-                x['Ticker']
-            ), axis=1
-        )
-
-        # Add a column for Margin of Safety (MOS) percentage for the Treemap
-        df_alpha['MOS'] = (df_alpha['intrinsic_value'] - df_alpha['Price']) / df_alpha['Price']
-        df_alpha = df_alpha.dropna(subset=['Sector', 'Price', 'AlphaScore'])
+        
+        # CLEANUP: Ensure numeric types and drop rows with missing hierarchical data
+        df_alpha['Price'] = pd.to_numeric(df_alpha['Price'], errors='coerce')
+        df_alpha['AlphaScore'] = pd.to_numeric(df_alpha['AlphaScore'], errors='coerce')
+        
+        # Fill any missing sectors to prevent the 'ValueError' in px.treemap
+        df_alpha['Sector'] = df_alpha['Sector'].fillna("Uncategorized")
+        
+        # Drop rows where critical plotting data is missing
+        df_alpha = df_alpha.dropna(subset=['Ticker', 'Sector', 'Price', 'AlphaScore'])
 
         st.subheader("🗺️ Sector Value Heatmap")
-        st.caption("Size = Price Weight | Color = Alpha Score (Green = High Opportunity)")
         
-        # Build the treemap using AlphaScore as the color metric
-        fig = px.treemap(
-            df_alpha, 
-            path=[px.Constant("Market"), 'Sector', 'Ticker'], 
-            values='Price',
-            color='AlphaScore',
-            color_continuous_scale='RdYlGn', 
-            color_continuous_midpoint=50, # 50 is the neutral base in our engine
-            hover_data={
-                'Action': True,
-                'Intrinsic': ':$.2f',
-                'AlphaScore': ':.0f',
-                'MOS': ':.1%'
-            }
-        )
-        
-        fig.update_layout(margin=dict(t=10, l=10, r=10, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        try:
+            fig = px.treemap(
+                df_alpha, 
+                path=[px.Constant("Market"), 'Sector', 'Ticker'], 
+                values='Price',
+                color='AlphaScore',
+                color_continuous_scale='RdYlGn', 
+                color_continuous_midpoint=50,
+                hover_data=['Action', 'MOS', 'AlphaScore']
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Treemap pending: Data structure sync required. (Error: {e})")
 
         # --- 2. SEARCH & FILTER ---
         st.divider()
